@@ -25,7 +25,7 @@ sub put_json_file {
     if (defined $schema_filename and -e $schema_filename) {
         chomp $schema_filename;
         my $jv = JSON::Validator->new;
-	my $schema_fh = new IO::Uncompress::UnXz $schema_filename, Transparent => 1 || die "Could not open file " . $schema_filename;
+        my $schema_fh = new IO::Uncompress::UnXz $schema_filename, Transparent => 1 || die "Could not open file " . $schema_filename;
         my $json_schema_text;
         while ( <$schema_fh> ) {
             $json_schema_text .= $_;
@@ -45,9 +45,9 @@ sub put_json_file {
     my $json_text = $coder->encode($json_ref);
     my $json_fh;
     if ($filename =~ /xz$/) {
-	$json_fh = new IO::Compress::Xz "$filename" || die("Could not open $filename.xz for writing\n");
+        $json_fh = new IO::Compress::Xz "$filename" || die("Could not open $filename.xz for writing\n");
     } else {
-	open($json_fh, ">", $filename);
+        open($json_fh, ">", $filename);
     }
     printf $json_fh "%s", $json_text;
     close($json_fh);
@@ -70,7 +70,7 @@ sub get_json_file {
     if (defined $schema_filename and -e $schema_filename) {
         chomp $schema_filename;
         my $jv = JSON::Validator->new;
-	my $schema_fh = new IO::Uncompress::UnXz $schema_filename, Transparent => 1 || die "Could not open file " . $schema_filename;
+        my $schema_fh = new IO::Uncompress::UnXz $schema_filename, Transparent => 1 || die "Could not open file " . $schema_filename;
         my $json_schema_text;
         while ( <$schema_fh> ) {
             $json_schema_text .= $_;
