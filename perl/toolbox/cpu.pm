@@ -18,17 +18,17 @@ sub build_cpu_topology {
             my $cpu_id = $cpu_dir;
             $cpu_id =~ s/^cpu//;
             chomp $cpu_id;
-	    my $this_cpu_online_path = $cpu_topo_path . "/" . $cpu_dir . "/online";
-	    if (-e $this_cpu_online_path) {
-		open(FH, $this_cpu_online_path);
-		my $online_state = <FH>;
-		close(FH);
-		chomp($online_state);
-		if ($online_state ne 1) {
-		    # skip cpus that are offline --they don't have topology information
-		    next;
-		}
-	    }
+            my $this_cpu_online_path = $cpu_topo_path . "/" . $cpu_dir . "/online";
+            if (-e $this_cpu_online_path) {
+                open(FH, $this_cpu_online_path);
+                my $online_state = <FH>;
+                close(FH);
+                chomp($online_state);
+                if ($online_state ne 1) {
+                    # skip cpus that are offline --they don't have topology information
+                    next;
+                }
+            }
             my $this_cpu_topo_path = $cpu_topo_path . "/" . $cpu_dir . "/topology";
             if (-d $this_cpu_topo_path) {
                 my %topo;
