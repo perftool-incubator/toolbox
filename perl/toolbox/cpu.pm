@@ -34,24 +34,26 @@ sub build_cpu_topology {
                 my %topo;
                 my $file;
                 for my $this_cpu_type ('physical_package_id', 'die_id', 'core_id') {
+                    my $id;
                     $file = $this_cpu_topo_path . "/" . $this_cpu_type;
                     if (-e $file) {
                         open(FH, $file) or die "Could not open $file";
-                        my $id = <FH>;
+                        $id = <FH>;
                         close FH;
                         chomp $id;
-                        if ($id =~ /^\d+$/) {
-                            if ($this_cpu_type eq "physical_package_id") {
-                                # Keep the naming consistent, $single_word_heirarchy_level . "_id"
-                                $topo{'package_id'} = $id;
-                            } else {
-                                $topo{$this_cpu_type} = $id;
-                            }
+                    } else {
+                        # If the topo info is not available, assume id = 0
+                        $id = 0;
+                    }
+                    if ($id =~ /^\d+$/) {
+                        if ($this_cpu_type eq "physical_package_id") {
+                            # Keep the naming consistent, $single_word_heirarchy_level . "_id"
+                            $topo{'package_id'} = $id;
                         } else {
-                            die "CPU ID for %s is not a valid number\n". $file;
+                            $topo{$this_cpu_type} = $id;
                         }
                     } else {
-                        printf "WARNING: could not find %s\n", $file;
+                        die "CPU ID for %s is not a valid number\n". $file;
                     }
                 }
                 # Getting a cpu-thread ID is not as straight forward as it is for package, die,
