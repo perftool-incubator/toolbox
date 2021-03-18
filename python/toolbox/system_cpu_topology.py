@@ -103,6 +103,30 @@ class system_cpu:
 
                             if self.debug:
                                 _debug_log("system_cpu: found cpu=%s thread_siblings_list=%s" % (self.cpu_id, self.thread_siblings_list))
+
+        self.numa_node = None
+        self.numa_node_cpus_list = None
+        for node in cpu_dir.glob('node[0-9]*'):
+            partition = str(node).partition('/node')
+            if partition[1] == partition[2] == '':
+                pass
+            else:
+                self.numa_node = int(partition[2])
+
+            self.numa_node_cpus_list = []
+            for cpu in node.glob('cpu[0-9]*'):
+                partition = str(cpu).partition('/node' + str(self.numa_node) + '/cpu')
+                if partition[1] == partition[2] == '':
+                    pass
+                else:
+                    node_cpu = int(partition[2])
+                    if self.cpu_id != node_cpu:
+                        self.numa_node_cpus_list.append(int(partition[2]))
+            self.numa_node_cpus_list.sort()
+        if self.debug:
+            _debug_log("system_cpu: found cpu=%s numa_node=%s" % (self.cpu_id, self.numa_node))
+            _debug_log("system_cpu: found cpu=%s numa_node_cpus_list=%s" % (self.cpu_id, self.numa_node_cpus_list))
+
         return(None)
 
     def get_id(self):
@@ -113,6 +137,9 @@ class system_cpu:
 
     def get_thread_siblings(self):
         return(self.thread_siblings_list)
+
+    def get_node_siblings(self):
+        return(self.numa_node_cpus_list)
 
 class system_cpu_topology:
     def __init__(self, sysfs_path='/sys/devices/system/cpu', debug = False):
@@ -157,6 +184,16 @@ class system_cpu_topology:
             siblings = self.cpus[cpu].get_thread_siblings()
         else:
             raise AttributeError("system_cpu_topology: get_thread_siblings: invalid cpu %d" % (cpu))
+
+        return(siblings)
+
+    def get_node_siblings(self, cpu):
+        siblings = []
+
+        if cpu in self.cpus:
+            siblings = self.cpus[cpu].get_node_siblings()
+        else:
+            raise AttributeError("system_cpu_topology: get_node_siblings: invalid cpu %d" % (cpu))
 
         return(siblings)
 
