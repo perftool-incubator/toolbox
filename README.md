@@ -4,3 +4,4 @@ The toolbox project contains code libraries to be shared across the [crucible](h
 Language(s) supported include:
 
 - [perl](perl/)
+- [python](python/)
