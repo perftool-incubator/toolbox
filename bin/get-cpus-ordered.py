@@ -2,6 +2,7 @@
 
 import argparse
 import copy
+import logging
 
 import sys
 import os
@@ -24,14 +25,19 @@ from toolbox.system_cpu_topology import *
 class t_global(object):
     args = None
     system_cpus = None
+    log_debug_format =    '[%(asctime)s %(levelname)s %(module)s %(funcName)s:%(lineno)d] %(message)s'
+    log_verbose_format =  '[%(asctime)s %(levelname)s] %(message)s'
+    log_normal_format =    '%(message)s'
+    log = None
 
 def process_options():
     parser = argparse.ArgumentParser(description="Order a list of CPUs based on requested topology")
 
-    parser.add_argument("--debug",
-                        dest = "debug",
-                        help = "Turn on debug output",
-                        action = "store_true")
+    parser.add_argument("--log-level",
+                        dest = "log_level",
+                        help = "Control how much logging output should be generated",
+                        default = "normal",
+                        choices = [ "normal", "verbose", "debug" ])
 
     parser.add_argument("--smt",
                         dest = "smt_mode",
@@ -62,8 +68,17 @@ def process_options():
 
     t_global.args = parser.parse_args()
 
+    if t_global.args.log_level == 'debug':
+        logging.basicConfig(level = logging.DEBUG, format = t_global.log_debug_format, stream = sys.stdout)
+    elif t_global.args.log_level == 'verbose':
+        logging.basicConfig(level = logging.INFO, format = t_global.log_verbose_format, stream = sys.stdout)
+    elif t_global.args.log_level == 'normal':
+        logging.basicConfig(level = logging.INFO, format = t_global.log_normal_format, stream = sys.stdout)
+
+    t_global.log = logging.getLogger(__file__)
+
     if t_global.args.smt_mode == "on" and t_global.args.smt_siblings_per_core == 1:
-        print("Disabling SMT since siblings per core is 1")
+        t_global.log.info("Disabling SMT since siblings per core is 1")
         t_global.args.smt_mode = "off"
 
     return(0)
@@ -75,6 +90,7 @@ def disable_smt(cpu_list):
 
     for cpu in cpu_list:
         if not cpu in cpu_set:
+            t_global.log.debug("disable_smt: skipping cpu '%d' because it has be processed already" % (cpu))
             continue
 
         cpu_set.remove(cpu)
@@ -149,29 +165,29 @@ def main():
     # remove any duplicates from the cpu list
     t_global.args.cpu_list = list(set(t_global.args.cpu_list))
 
-    t_global.system_cpus = system_cpu_topology(debug = t_global.args.debug)
+    t_global.system_cpus = system_cpu_topology(log = t_global.log)
 
-    print("all: %s" % (t_global.system_cpus.get_all_cpus()))
+    t_global.log.info("all: %s" % (t_global.system_cpus.get_all_cpus()))
 
-    print("online: %s" % (t_global.system_cpus.get_online_cpus()))
+    t_global.log.info("online: %s" % (t_global.system_cpus.get_online_cpus()))
 
     if t_global.args.smt_mode == "on":
-        print("SMT is on -> all CPUs from a sibling list are included")
+        t_global.log.info("SMT is on -> all CPUs from a sibling list are included")
         
         output_list = copy.deepcopy(t_global.args.cpu_list)
     elif t_global.args.smt_mode == "off":
-        print("SMT is off -> only including one CPU from each sibling list")
+        t_global.log.info("SMT is off -> only including one CPU from each sibling list")
 
         output_list = disable_smt(t_global.args.cpu_list)
 
-    print("output list: %s" % (output_list))
+    t_global.log.info("output list: %s" % (output_list))
 
     if t_global.args.smt_mode == "on":
-        print("SMT i on -> using '%s' mode to order SMT siblings" % (t_global.args.smt_enumeration))
+        t_global.log.info("SMT is on -> using '%s' mode to order SMT siblings" % (t_global.args.smt_enumeration))
 
         output_list = configure_smt_enumeration(output_list)
 
-    print("output list: %s" % (output_list))
+    t_global.log.info("output list: %s" % (output_list))
 
     return(0)
 

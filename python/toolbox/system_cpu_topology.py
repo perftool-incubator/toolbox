@@ -1,32 +1,37 @@
 import copy
+import logging
 from pathlib import Path
 
-def _debug_log(log_msg):
-    return(print("DEBUG: %s" % (log_msg)))
+log_format = '%(asctime)s %(levelname)s: %(message)s'
 
 class system_cpu:
-    def __init__(self, cpu_dir, debug = False):
-        self.debug = debug
+    def __init__(self, cpu_dir, log = None, debug = False):
+        if not log is None:
+            self.log = log
+        else:
+            if debug:
+                logging.basicConfig(level = logging.DEBUG, format = log_format, stream = sys.stdout)
+            else:
+                logging.basicConfig(level = logging.INFO, format = log_format, stream = sys.stdout)
 
-        if self.debug:
-            _debug_log("system_cpu: processing %s" % (cpu_dir))
+            self.log = logging.getLogger(__file__)
+
+        self.log.debug("processing %s" % (cpu_dir))
 
         partition = str(cpu_dir).partition('cpu/cpu')
         if partition[2] == '':
-            raise AttributeError("system_cpu: Could not extract cpu_id from '%s'" % (cpu_dir))
+            raise AttributeError("Could not extract cpu_id from '%s'" % (cpu_dir))
         self.cpu_id = int(partition[2])
 
-        if self.debug:
-            _debug_log("system_cpu: found cpu=%s" % (self.cpu_id))
+        self.log.debug("found cpu=%s" % (self.cpu_id))
 
         file = cpu_dir / 'online'
         if file.exists() and file.is_file():
             with file.open() as fh:
                 self.online = int(fh.readline().rstrip())
-                if self.debug:
-                    _debug_log("system_cpu: found cpu=%s online=%s" % (self.cpu_id, self.online))
+                self.log.debug("found cpu=%s online=%s" % (self.cpu_id, self.online))
         else:
-            raise AttributeError("system_cpu: Could not open 'online' file for cpu=%d" % (cpu_id))
+            raise AttributeError("Could not open 'online' file for cpu=%d" % (cpu_id))
 
         dir = cpu_dir / 'topology'
         if dir.exists() and dir.is_dir():
@@ -36,18 +41,15 @@ class system_cpu:
                     if partition[2] == 'physical_package_id':
                         with file.open() as fh:
                             self.physical_package_id = int(fh.readline().rstrip())
-                            if self.debug:
-                                _debug_log("system_cpu: found cpu=%s physical_package_id=%d" % (self.cpu_id, self.physical_package_id))
+                            self.log.debug("found cpu=%s physical_package_id=%d" % (self.cpu_id, self.physical_package_id))
                     elif partition[2] == 'core_id':
                         with file.open() as fh:
                             self.core_id = int(fh.readline().rstrip())
-                            if self.debug:
-                                _debug_log("system_cpu: found cpu=%s core_id=%d" % (self.cpu_id, self.core_id))
+                            self.log.debug("found cpu=%s core_id=%d" % (self.cpu_id, self.core_id))
                     elif partition[2] == 'die_id':
                         with file.open() as fh:
                             self.die_id = int(fh.readline().rstrip())
-                            if self.debug:
-                                _debug_log("system_cpu: found cpu=%s die_id=%d" % (self.cpu_id, self.die_id))
+                            self.log.debug("found cpu=%s die_id=%d" % (self.cpu_id, self.die_id))
                     elif partition[2] == 'core_cpus_list':
                         with file.open() as fh:
                             self.cores_cpus_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
@@ -57,8 +59,7 @@ class system_cpu:
                             except ValueError as e:
                                 pass
 
-                            if self.debug:
-                                _debug_log("system_cpu: found cpu=%s core_cpus_list=%s" % (self.cpu_id, self.cores_cpus_list))
+                            self.log.debug("found cpu=%s core_cpus_list=%s" % (self.cpu_id, self.cores_cpus_list))
                     elif partition[2] == 'core_siblings_list':
                         with file.open() as fh:
                             self.core_siblings_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
@@ -68,8 +69,7 @@ class system_cpu:
                             except ValueError as e:
                                 pass
 
-                            if self.debug:
-                                _debug_log("system_cpu: found cpu=%s core_siblings_list=%s" % (self.cpu_id, self.core_siblings_list))
+                            self.log.debug("found cpu=%s core_siblings_list=%s" % (self.cpu_id, self.core_siblings_list))
                     elif partition[2] == 'die_cpus_list':
                         with file.open() as fh:
                             self.die_cpus_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
@@ -79,8 +79,7 @@ class system_cpu:
                             except ValueError as e:
                                 pass
 
-                            if self.debug:
-                                _debug_log("system_cpu: found cpu=%s die_cpus_list=%s" % (self.cpu_id, self.die_cpus_list))
+                            self.log.debug("found cpu=%s die_cpus_list=%s" % (self.cpu_id, self.die_cpus_list))
                     elif partition[2] == 'package_cpus_list':
                         with file.open() as fh:
                             self.package_cpus_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
@@ -90,8 +89,7 @@ class system_cpu:
                             except ValueError as e:
                                 pass
 
-                            if self.debug:
-                                _debug_log("system_cpu: found cpu=%s package_cpus_list=%s" % (self.cpu_id, self.package_cpus_list))
+                            self.log.debug("found cpu=%s package_cpus_list=%s" % (self.cpu_id, self.package_cpus_list))
                     elif partition[2] == 'thread_siblings_list':
                         with file.open() as fh:
                             self.thread_siblings_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
@@ -101,8 +99,7 @@ class system_cpu:
                             except ValueError as e:
                                 pass
 
-                            if self.debug:
-                                _debug_log("system_cpu: found cpu=%s thread_siblings_list=%s" % (self.cpu_id, self.thread_siblings_list))
+                            self.log.debug("found cpu=%s thread_siblings_list=%s" % (self.cpu_id, self.thread_siblings_list))
 
         self.numa_node = None
         self.numa_node_cpus_list = None
@@ -123,9 +120,9 @@ class system_cpu:
                     if self.cpu_id != node_cpu:
                         self.numa_node_cpus_list.append(int(partition[2]))
             self.numa_node_cpus_list.sort()
-        if self.debug:
-            _debug_log("system_cpu: found cpu=%s numa_node=%s" % (self.cpu_id, self.numa_node))
-            _debug_log("system_cpu: found cpu=%s numa_node_cpus_list=%s" % (self.cpu_id, self.numa_node_cpus_list))
+
+        self.log.debug("found cpu=%s numa_node=%s" % (self.cpu_id, self.numa_node))
+        self.log.debug("found cpu=%s numa_node_cpus_list=%s" % (self.cpu_id, self.numa_node_cpus_list))
 
         return(None)
 
@@ -142,10 +139,21 @@ class system_cpu:
         return(self.numa_node_cpus_list)
 
 class system_cpu_topology:
-    def __init__(self, sysfs_path='/sys/devices/system/cpu', debug = False):
+    def __init__(self, sysfs_path='/sys/devices/system/cpu', log = None, debug = False):
         self.sysfs_path = sysfs_path
-        self.debug = debug
+
+        if not log is None:
+            self.log = log
+        else:
+            if debug:
+                logging.basicConfig(level = logging.DEBUG, format = log_format, stream = sys.stdout)
+            else:
+                logging.basicConfig(level = logging.INFO, format = log_format, stream = sys.stdout)
+
+            self.log = logging.getLogger(__file__)
+
         self.discover()
+
         return(None)
 
     def discover(self):
@@ -156,7 +164,7 @@ class system_cpu_topology:
         for cpu in path.glob('cpu[0-9]*'):
             if cpu.is_dir():
                 try:
-                    cpu_obj = system_cpu(cpu, debug = self.debug)
+                    cpu_obj = system_cpu(cpu, log = self.log)
                     self.cpus[cpu_obj.get_id()] = cpu_obj
                 except AttributeError as e:
                     print(e)
@@ -183,7 +191,7 @@ class system_cpu_topology:
         if cpu in self.cpus:
             siblings = self.cpus[cpu].get_thread_siblings()
         else:
-            raise AttributeError("system_cpu_topology: get_thread_siblings: invalid cpu %d" % (cpu))
+            raise AttributeError("get_thread_siblings: invalid cpu %d" % (cpu))
 
         return(siblings)
 
@@ -193,7 +201,7 @@ class system_cpu_topology:
         if cpu in self.cpus:
             siblings = self.cpus[cpu].get_node_siblings()
         else:
-            raise AttributeError("system_cpu_topology: get_node_siblings: invalid cpu %d" % (cpu))
+            raise AttributeError("get_node_siblings: invalid cpu %d" % (cpu))
 
         return(siblings)
 
