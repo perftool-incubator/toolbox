@@ -61,7 +61,6 @@ def process_options():
     parser.add_argument("--cpu",
                         dest = "cpu_list",
                         help = "One or more CPUs to order",
-                        required = True,
                         default = [],
                         action = 'append',
                         type = int)
@@ -157,37 +156,55 @@ def configure_smt_enumeration(cpu_list):
 
     return(smt_enumeration_list)
 
+def output_cpu_info(label, cpu_list):
+    t_global.log.debug("%s cpus: %d" % (label, len(cpu_list)))
+    short_cpu_list = system_cpu_topology.formatted_cpu_list(cpu_list)
+    formatted_short_cpu_list = ','.join(short_cpu_list)
+    t_global.log.debug("%s cpus: %s" % (label, formatted_short_cpu_list))
+
+    cpu_list = ','.join(map(str, cpu_list))
+    t_global.log.info("%s cpus: %s" % (label, cpu_list))
+
+    return(0)
+
 def main():
     process_options()
 
-    output_list = []
-    
-    # remove any duplicates from the cpu list
-    t_global.args.cpu_list = list(set(t_global.args.cpu_list))
+    cpu_list = []
 
     t_global.system_cpus = system_cpu_topology(log = t_global.log)
 
-    t_global.log.info("all: %s" % (t_global.system_cpus.get_all_cpus()))
+    output_cpu_info("all", t_global.system_cpus.get_all_cpus())
 
-    t_global.log.info("online: %s" % (t_global.system_cpus.get_online_cpus()))
+    output_cpu_info("online", t_global.system_cpus.get_online_cpus())
+
+    if len(t_global.args.cpu_list) == 0:
+        t_global.log.info("No CPU list provided, using all online CPUs")
+        t_global.args.cpu_list = t_global.system_cpus.get_online_cpus()
+    else:
+        # remove any duplicates from the cpu list
+        t_global.args.cpu_list = list(set(t_global.args.cpu_list))
+
+        output_cpu_info("requested", t_global.args.cpu_list)
 
     if t_global.args.smt_mode == "on":
         t_global.log.info("SMT is on -> all CPUs from a sibling list are included")
         
-        output_list = copy.deepcopy(t_global.args.cpu_list)
+        cpu_list = copy.deepcopy(t_global.args.cpu_list)
     elif t_global.args.smt_mode == "off":
         t_global.log.info("SMT is off -> only including one CPU from each sibling list")
 
-        output_list = disable_smt(t_global.args.cpu_list)
+        cpu_list = disable_smt(t_global.args.cpu_list)
 
-    t_global.log.info("output list: %s" % (output_list))
-
+        output_cpu_info("smt off", cpu_list)
     if t_global.args.smt_mode == "on":
         t_global.log.info("SMT is on -> using '%s' mode to order SMT siblings" % (t_global.args.smt_enumeration))
 
-        output_list = configure_smt_enumeration(output_list)
+        cpu_list = configure_smt_enumeration(cpu_list)
 
-    t_global.log.info("output list: %s" % (output_list))
+        output_cpu_info("ordered", cpu_list)
+
+    output_cpu_info("final", cpu_list)
 
     return(0)
 
