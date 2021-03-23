@@ -19,7 +19,7 @@ class system_cpu:
         self.log.debug("processing %s" % (cpu_dir))
 
         partition = str(cpu_dir).partition('cpu/cpu')
-        if partition[2] == '':
+        if partition[1] == partition[2] == '':
             raise AttributeError("Could not extract cpu_id from '%s'" % (cpu_dir))
         self.cpu_id = int(partition[2])
 
@@ -37,69 +37,71 @@ class system_cpu:
         if dir.exists() and dir.is_dir():
             for file in dir.iterdir():
                 partition = str(file).partition('topology/')
-                if partition[2] != '':
-                    if partition[2] == 'physical_package_id':
-                        with file.open() as fh:
-                            self.physical_package_id = int(fh.readline().rstrip())
-                            self.log.debug("found cpu=%s physical_package_id=%d" % (self.cpu_id, self.physical_package_id))
-                    elif partition[2] == 'core_id':
-                        with file.open() as fh:
-                            self.core_id = int(fh.readline().rstrip())
-                            self.log.debug("found cpu=%s core_id=%d" % (self.cpu_id, self.core_id))
-                    elif partition[2] == 'die_id':
-                        with file.open() as fh:
-                            self.die_id = int(fh.readline().rstrip())
-                            self.log.debug("found cpu=%s die_id=%d" % (self.cpu_id, self.die_id))
-                    elif partition[2] == 'core_cpus_list':
-                        with file.open() as fh:
-                            self.cores_cpus_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
 
-                            try:
-                                self.cores_cpus_list.remove(self.cpu_id)
-                            except ValueError as e:
-                                pass
+                if partition[2] == 'physical_package_id':
+                    with file.open() as fh:
+                        self.physical_package_id = int(fh.readline().rstrip())
+                        self.log.debug("found cpu=%s physical_package_id=%d" % (self.cpu_id, self.physical_package_id))
+                elif partition[2] == 'core_id':
+                    with file.open() as fh:
+                        self.core_id = int(fh.readline().rstrip())
+                        self.log.debug("found cpu=%s core_id=%d" % (self.cpu_id, self.core_id))
+                elif partition[2] == 'die_id':
+                    with file.open() as fh:
+                        self.die_id = int(fh.readline().rstrip())
+                        self.log.debug("found cpu=%s die_id=%d" % (self.cpu_id, self.die_id))
+                elif partition[2] == 'core_cpus_list':
+                    with file.open() as fh:
+                        self.cores_cpus_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
 
-                            self.log.debug("found cpu=%s core_cpus_list=%s" % (self.cpu_id, self.cores_cpus_list))
-                    elif partition[2] == 'core_siblings_list':
-                        with file.open() as fh:
-                            self.core_siblings_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
+                        try:
+                            self.cores_cpus_list.remove(self.cpu_id)
+                        except ValueError as e:
+                            pass
 
-                            try:
-                                self.core_siblings_list.remove(self.cpu_id)
-                            except ValueError as e:
-                                pass
+                        self.log.debug("found cpu=%s core_cpus_list=%s" % (self.cpu_id, self.cores_cpus_list))
+                elif partition[2] == 'core_siblings_list':
+                    with file.open() as fh:
+                        self.core_siblings_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
 
-                            self.log.debug("found cpu=%s core_siblings_list=%s" % (self.cpu_id, self.core_siblings_list))
-                    elif partition[2] == 'die_cpus_list':
-                        with file.open() as fh:
-                            self.die_cpus_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
+                        try:
+                            self.core_siblings_list.remove(self.cpu_id)
+                        except ValueError as e:
+                            pass
 
-                            try:
-                                self.die_cpus_list.remove(self.cpu_id)
-                            except ValueError as e:
-                                pass
+                        self.log.debug("found cpu=%s core_siblings_list=%s" % (self.cpu_id, self.core_siblings_list))
+                elif partition[2] == 'die_cpus_list':
+                    with file.open() as fh:
+                        self.die_cpus_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
 
-                            self.log.debug("found cpu=%s die_cpus_list=%s" % (self.cpu_id, self.die_cpus_list))
-                    elif partition[2] == 'package_cpus_list':
-                        with file.open() as fh:
-                            self.package_cpus_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
+                        try:
+                            self.die_cpus_list.remove(self.cpu_id)
+                        except ValueError as e:
+                            pass
 
-                            try:
-                                self.package_cpus_list.remove(self.cpu_id)
-                            except ValueError as e:
-                                pass
+                        self.log.debug("found cpu=%s die_cpus_list=%s" % (self.cpu_id, self.die_cpus_list))
+                elif partition[2] == 'package_cpus_list':
+                    with file.open() as fh:
+                        self.package_cpus_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
 
-                            self.log.debug("found cpu=%s package_cpus_list=%s" % (self.cpu_id, self.package_cpus_list))
-                    elif partition[2] == 'thread_siblings_list':
-                        with file.open() as fh:
-                            self.thread_siblings_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
+                        try:
+                            self.package_cpus_list.remove(self.cpu_id)
+                        except ValueError as e:
+                            pass
 
-                            try:
-                                self.thread_siblings_list.remove(self.cpu_id)
-                            except ValueError as e:
-                                pass
+                        self.log.debug("found cpu=%s package_cpus_list=%s" % (self.cpu_id, self.package_cpus_list))
+                elif partition[2] == 'thread_siblings_list':
+                    with file.open() as fh:
+                        self.thread_siblings_list = system_cpu_topology.parse_cpu_list(fh.readline().rstrip())
 
-                            self.log.debug("found cpu=%s thread_siblings_list=%s" % (self.cpu_id, self.thread_siblings_list))
+                        try:
+                            self.thread_siblings_list.remove(self.cpu_id)
+                        except ValueError as e:
+                            pass
+
+                        self.log.debug("found cpu=%s thread_siblings_list=%s" % (self.cpu_id, self.thread_siblings_list))
+                else:
+                    self.log.debug("skipping cpu=%s file=%s" % (self.cpu_id, partition[2]))
 
         self.numa_node = None
         self.numa_node_cpus_list = None
