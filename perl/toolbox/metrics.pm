@@ -21,7 +21,7 @@ my $total_logged_samples;
 my $total_cons_samples;
 my %inter_sample_interval;
 my $use_xz = 1;
-my $metric_data_fh;
+my %metric_data_fh;
 my $metric_data_file_prefix;
 my $metric_data_file;
 
@@ -30,10 +30,10 @@ sub write_sample {
     my $begin = shift;
     my $end = shift;
     my $value = shift;
-    if (defined $metric_data_fh) {
-        printf { $metric_data_fh } "%d,%d,%d,%f\n", $idx, $begin, $end, $value;
+    if (defined $metric_data_fh{$file_id}) {
+        printf { $metric_data_fh{$file_id} } "%d,%d,%d,%f\n", $idx, $begin, $end, $value;
     } else {
-        print "Cannot write sample with undefined file handle\n";
+        printf "Cannot write sample with undefined file handle: %s\n", $file_id;
         exit 1;
     }
     if (defined $num_written_samples[$idx]) {
@@ -66,7 +66,7 @@ sub finish_samples {
     my $num_deletes = 0;
     # All of the stored samples need to be written
     for (my $idx = 0; $idx < scalar @stored_sample; $idx++) {
-        if (defined $metric_data_fh) {
+        if (defined $metric_data_fh{$file_id}) {
             if (defined $stored_sample[$idx]) {
                 if ($stored_sample[$idx]{'value'} == 0 and ! defined $num_written_samples[$idx]) {
                     # This metric has only 1 sample and the value is 0, so it "did not do any work".  Therefore, we can just
@@ -80,14 +80,13 @@ sub finish_samples {
                     write_sample($idx, $stored_sample[$idx]{'begin'}, $stored_sample[$idx]{'end'}, $stored_sample[$idx]{'value'});
                     $metric_types[$idx]{'idx'} = $idx;
                 }
-            } else {
-                printf "ERROR: No stored sample defined at index %d\n", $idx;
-                exit 1;
+                undef $stored_sample[$idx];
             }
         }
     }
-    if (defined $metric_data_fh) {
-        close($metric_data_fh);
+    undef @stored_sample;
+    if (defined $metric_data_fh{$file_id}) {
+        close($metric_data_fh{$file_id});
     } else {
         printf "finish_samples(): cannot close file with undefined file handle\n";
         exit 1;
@@ -112,6 +111,10 @@ sub finish_samples {
         print $json_fh $coder->encode(\@new_metric_types);
         close($json_fh);
     }
+    undef %metric_idx;
+    undef @metric_types;
+    undef($metric_data_fh{$file_id});
+    undef $file_id;
     return $metric_data_file_prefix;
 }
 
@@ -142,11 +145,11 @@ sub log_sample {
         # of this script can explode.  Instead, samples are written to a file (but we
         # also merge cronologically adjacent samples with the same valule).
         # Check for and open this file now.
-        if (! defined $metric_data_fh) {
+        if (! defined $metric_data_fh{$file_id}) {
             if ($use_xz == "1") {
-                $metric_data_fh = new IO::Compress::Xz $metric_data_file || die("Could not open " . $metric_data_file . " for writing\n");
+                $metric_data_fh{$file_id} = new IO::Compress::Xz $metric_data_file || die("Could not open " . $metric_data_file . " for writing\n");
             } else {
-                open( $metric_data_fh, '>' . $metric_data_file) or die("Could not open " . $metric_data_file . ": $!");
+                open( $metric_data_fh{$file_id}, '>' . $metric_data_file) or die("Could not open " . $metric_data_file . ": $!");
             }
         }
         if (defined $sample{'begin'}) {
