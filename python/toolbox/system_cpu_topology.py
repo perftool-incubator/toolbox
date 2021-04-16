@@ -140,6 +140,9 @@ class system_cpu:
     def get_node_siblings(self):
         return(self.numa_node_cpus_list)
 
+    def get_node(self):
+        return(self.numa_node)
+
 class system_cpu_topology:
     def __init__(self, sysfs_path='/sys/devices/system/cpu', log = None, debug = False):
         self.sysfs_path = sysfs_path
@@ -206,6 +209,12 @@ class system_cpu_topology:
             raise AttributeError("get_node_siblings: invalid cpu %d" % (cpu))
 
         return(siblings)
+
+    def get_cpu_node(self, cpu):
+        if cpu in self.cpus:
+            return(self.cpus[cpu].get_node())
+        else:
+            raise AttributeError("get_cpu_node: invalid cpu %d" % (cpu))
 
     @staticmethod
     def parse_cpu_list(input_list):
