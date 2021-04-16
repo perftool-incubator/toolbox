@@ -30,10 +30,15 @@ sub write_sample {
     my $begin = shift;
     my $end = shift;
     my $value = shift;
-    if (defined $metric_data_fh{$file_id}) {
-        printf { $metric_data_fh{$file_id} } "%d,%d,%d,%f\n", $idx, $begin, $end, $value;
+    if (defined $file_id) {
+        if (defined $metric_data_fh{$file_id}) {
+            printf { $metric_data_fh{$file_id} } "%d,%d,%d,%f\n", $idx, $begin, $end, $value;
+        } else {
+            printf "Cannot write sample with undefined file handle: %s\n", $file_id;
+            exit 1;
+        }
     } else {
-        printf "Cannot write sample with undefined file handle: %s\n", $file_id;
+        printf "Cannot write sample because \$file_id is undefined\n";
         exit 1;
     }
     if (defined $num_written_samples[$idx]) {
@@ -62,60 +67,62 @@ sub get_metric_label {
 }
 
 sub finish_samples {
-    my @new_metric_types;
-    my $num_deletes = 0;
-    # All of the stored samples need to be written
-    for (my $idx = 0; $idx < scalar @stored_sample; $idx++) {
-        if (defined $metric_data_fh{$file_id}) {
-            if (defined $stored_sample[$idx]) {
-                if ($stored_sample[$idx]{'value'} == 0 and ! defined $num_written_samples[$idx]) {
-                    # This metric has only 1 sample and the value is 0, so it "did not do any work".  Therefore, we can just
-                    # not create this metric at all.
-                    # TODO: This optimization might be better if the metric source/type could opt in/out of this.
-                    # There might be certain metrics which users want to query and get a "0" instead of a metric
-                    # not existing.  FWIW, this should *not* be a problem for metric-aggregation for throughput class.
-                    $metric_types[$idx]{'purge'} = 1;
-                    $num_deletes++;
-                } else {
-                    write_sample($idx, $stored_sample[$idx]{'begin'}, $stored_sample[$idx]{'end'}, $stored_sample[$idx]{'value'});
-                    $metric_types[$idx]{'idx'} = $idx;
+    if (defined $file_id) {
+        my @new_metric_types;
+        my $num_deletes = 0;
+        # All of the stored samples need to be written
+        for (my $idx = 0; $idx < scalar @stored_sample; $idx++) {
+            if (defined $metric_data_fh{$file_id}) {
+                if (defined $stored_sample[$idx]) {
+                    if ($stored_sample[$idx]{'value'} == 0 and ! defined $num_written_samples[$idx]) {
+                        # This metric has only 1 sample and the value is 0, so it "did not do any work".  Therefore, we can just
+                        # not create this metric at all.
+                        # TODO: This optimization might be better if the metric source/type could opt in/out of this.
+                        # There might be certain metrics which users want to query and get a "0" instead of a metric
+                        # not existing.  FWIW, this should *not* be a problem for metric-aggregation for throughput class.
+                        $metric_types[$idx]{'purge'} = 1;
+                        $num_deletes++;
+                    } else {
+                        write_sample($idx, $stored_sample[$idx]{'begin'}, $stored_sample[$idx]{'end'}, $stored_sample[$idx]{'value'});
+                        $metric_types[$idx]{'idx'} = $idx;
+                    }
+                    undef $stored_sample[$idx];
                 }
-                undef $stored_sample[$idx];
             }
-        }
-    }
-    undef @stored_sample;
-    if (defined $metric_data_fh{$file_id}) {
-        close($metric_data_fh{$file_id});
-    } else {
-        printf "finish_samples(): cannot close file with undefined file handle\n";
-        exit 1;
-    }
-    for (my $idx = 0; $idx < scalar @metric_types; $idx++) {
-        next if (defined $metric_types[$idx]{'purge'} and $metric_types[$idx]{'purge'} == 1);
-        my %metric = ( 'idx' => $metric_types[$idx]{'idx'},
-                       'desc' => $metric_types[$idx]{'desc'},
-                       'names' => $metric_types[$idx]{'names'});
-        push(@new_metric_types, \%metric);
-    }
-    if (scalar @new_metric_types > 0) {
-        my $coder = JSON::XS->new;
-        my $file = "metric-data-" . $file_id . ".json";
-        my $json_fh;
-        if ($use_xz == "1") {
-            $file .= ".xz";
-            $json_fh = new IO::Compress::Xz $file || die("Could not open " . $file . " for writing\n");
+	}
+        if (defined $metric_data_fh{$file_id}) {
+            close($metric_data_fh{$file_id});
         } else {
-            open( $json_fh, '>' . $file) or die("Could not open " . $file . ": $!");
+                printf "Cannot finish samples because \$file_id is undefined\n";
+                exit 1;
         }
-        print $json_fh $coder->encode(\@new_metric_types);
-        close($json_fh);
+        for (my $idx = 0; $idx < scalar @metric_types; $idx++) {
+            next if (defined $metric_types[$idx]{'purge'} and $metric_types[$idx]{'purge'} == 1);
+            my %metric = ( 'idx' => $metric_types[$idx]{'idx'},
+                           'desc' => $metric_types[$idx]{'desc'},
+                           'names' => $metric_types[$idx]{'names'});
+            push(@new_metric_types, \%metric);
+        }
+        if (scalar @new_metric_types > 0) {
+            my $coder = JSON::XS->new;
+            my $file = "metric-data-" . $file_id . ".json";
+            my $json_fh;
+            if ($use_xz == "1") {
+                $file .= ".xz";
+                $json_fh = new IO::Compress::Xz $file || die("Could not open " . $file . " for writing\n");
+            } else {
+                open( $json_fh, '>' . $file) or die("Could not open " . $file . ": $!");
+            }
+            print $json_fh $coder->encode(\@new_metric_types);
+            close($json_fh);
+        }
+        return $metric_data_file_prefix;
+        undef @stored_sample;
+        undef %metric_idx;
+        undef @metric_types;
+        undef($metric_data_fh{$file_id});
+        undef $file_id;
     }
-    undef %metric_idx;
-    undef @metric_types;
-    undef($metric_data_fh{$file_id});
-    undef $file_id;
-    return $metric_data_file_prefix;
 }
 
 sub log_sample {
