@@ -59,21 +59,11 @@ def get_metric_label(desc: object, names: object):
 def log_sample(this_file_id: str, desc: object, names: object, sample: object):
     global file_id, total_logged_samples, total_cons_samples, stored_sample
     file_id = this_file_id
-    print("file_id:")
-    print(file_id);
-    print("metric_types:")
-    print(metric_types);
     metric_data_file_prefix = "metric-data-" + file_id
     metric_data_file = metric_data_file_prefix + ".csv"
     label = get_metric_label(desc, names)
-    print("label: " + label)
-    print("metric_idx:")
-    print(metric_idx)
     if label in metric_idx:
         # This is not the first sample for this metric_type (of this label)
-        print("This is not the first sample for this metric_type (of this label)")
-        print("metric_idx:")
-        print(metric_idx)
         idx = metric_idx[label]
         # Figure out what the typical duration is between samples from the first two
         # (This should only be triggered on the second sample)
@@ -111,20 +101,13 @@ def log_sample(this_file_id: str, desc: object, names: object, sample: object):
         total_logged_samples += 1
         return
     else:
-        print("This is the first sample for this metric type (of this label)")
         # This is the first sample for this metric type (of this label)
         # This is how we track which element in the metrics array belongs to this metric type
         metric_idx[label] = len(metric_types)
         idx = metric_idx[label]
         # store the metric_desc info
         metric_type = { 'desc': desc, 'names': names }
-        print("metric_types[]:")
-        print(metric_types)
-        print("idx:")
-        print(idx)
         metric_types.append(metric_type)
-        print("metric_types length:")
-        print(len(metric_types))
         # Sample data will not be accumulated in a hash or array, as the memory usage
         # of this script can explode.  Instead, samples are written to a file (but we
         # also merge cronologically adjacent samples with the same valule).
@@ -132,8 +115,6 @@ def log_sample(this_file_id: str, desc: object, names: object, sample: object):
         if file_id not in metric_data_fh:
             metric_data_fh[file_id] = open(metric_data_file, "w")
         stored_sample[idx] = sample
-        print("idx:")
-        print(idx)
 
 def finish_samples():
     global file_id, stored_sample, interval, metric_idx, metric_types
