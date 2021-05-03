@@ -38,23 +38,29 @@ sub write_sample {
                         if (defined $value) {
                             printf { $metric_data_fh{$file_id} } "%d,%d,%d,%f\n", $idx, $begin, $end, $value;
                         } else {
-                            print "metrics.pm::write_sample(): \$value is not defined, idx = %d, begin = %d, end = %d, file_id = %s\n", $idx, $begin, $end;
+                            printf "metrics.pm::write_sample(): 'value' is not defined, filed_id = %s, idx = %d, begin = %d, end = %d\n", $file_id, $idx, $begin, $end;
+                            print "desc: " . Dumper $metric_types[$idx];
                         }
                     } else {
-                        print "metrics.pm::write_sample(): \$end is not defined\n";
+                        printf "metrics.pm::write_sample(): 'end' is not defined, filed_id = %s, idx = %d, value = %f, begin = %d\n", $file_id, $idx, $value, $begin;
+                        print "desc: " . Dumper $metric_types[$idx];
                     }
                 } else {
-                    print "metrics.pm::write_sample(): \$begin is not defined\n";
+                    printf "metrics.pm::write_sample(): 'begin' is not defined, filed_id = %s, idx = %d, value = %f, end = %d\n", $file_id, $idx, $value, $end;
+                    print "desc: " . Dumper $metric_types[$idx];
                 }
             } else {
-                print "metrics.pm::write_sample(): \$idxn is not defined\n";
+                printf "metrics.pm::write_sample(): 'idx' is not defined, filed_id = %s, value = %f, begin = %d, end = %d\n", $file_id, $value, $begin, $end;
+                print "desc: " . Dumper $metric_types[$idx];
             }
         } else {
-            printf "Cannot write sample with undefined file handle: %s\n", $file_id;
+            printf "metrics.pm::write_sample(): metric_data_fh{file_id} is not defined, idx = %d, value = %f, begin = %d, end = %d\n", $idx, $value, $begin, $end;
+            print "desc: " . Dumper $metric_types[$idx];
             exit 1;
         }
     } else {
-        printf "Cannot write sample because \$file_id is undefined\n";
+        printf "metrics.pm::write_sample(): file_id is not defined, idx = %d, value = %f, begin = %d, end = %d\n", $idx, $value, $begin, $end;
+        print "desc: " . Dumper $metric_types[$idx];
         exit 1;
     }
     if (defined $num_written_samples[$idx]) {
