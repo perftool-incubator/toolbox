@@ -32,7 +32,23 @@ sub write_sample {
     my $value = shift;
     if (defined $file_id) {
         if (defined $metric_data_fh{$file_id}) {
-            printf { $metric_data_fh{$file_id} } "%d,%d,%d,%f\n", $idx, $begin, $end, $value;
+            if (defined $idx) {
+                if (defined $begin) {
+                    if (defined $end) {
+                        if (defined $value) {
+                            printf { $metric_data_fh{$file_id} } "%d,%d,%d,%f\n", $idx, $begin, $end, $value;
+                        } else {
+                            print "metrics.pm::write_sample(): \$value is not defined, idx = %d, begin = %d, end = %d, file_id = %s\n", $idx, $begin, $end;
+                        }
+                    } else {
+                        print "metrics.pm::write_sample(): \$end is not defined\n";
+                    }
+                } else {
+                    print "metrics.pm::write_sample(): \$begin is not defined\n";
+                }
+            } else {
+                print "metrics.pm::write_sample(): \$idxn is not defined\n";
+            }
         } else {
             printf "Cannot write sample with undefined file handle: %s\n", $file_id;
             exit 1;
@@ -89,13 +105,7 @@ sub finish_samples {
                     undef $stored_sample[$idx];
                 }
             }
-	}
-        if (defined $metric_data_fh{$file_id}) {
-            close($metric_data_fh{$file_id});
-        } else {
-                printf "Cannot finish samples because \$file_id is undefined\n";
-                exit 1;
-        }
+	    }
         for (my $idx = 0; $idx < scalar @metric_types; $idx++) {
             next if (defined $metric_types[$idx]{'purge'} and $metric_types[$idx]{'purge'} == 1);
             my %metric = ( 'idx' => $metric_types[$idx]{'idx'},
@@ -104,7 +114,7 @@ sub finish_samples {
             push(@new_metric_types, \%metric);
         }
         if (scalar @new_metric_types > 0) {
-            my $coder = JSON::XS->new;
+            my $coder = JSON::XS->new->canonical->pretty;
             my $file = "metric-data-" . $file_id . ".json";
             my $json_fh;
             if ($use_xz == "1") {
@@ -113,8 +123,13 @@ sub finish_samples {
             } else {
                 open( $json_fh, '>' . $file) or die("Could not open " . $file . ": $!");
             }
+            printf "writing metric_types into json for %s\n", $file_id;
             print $json_fh $coder->encode(\@new_metric_types);
             close($json_fh);
+            printf "closing csv file for %s\n", $file_id;
+            close($metric_data_fh{$file_id});
+        } else {
+            printf "There are no metric_types for %s\n", $file_id;
         }
         return $metric_data_file_prefix;
         undef @stored_sample;
@@ -122,6 +137,8 @@ sub finish_samples {
         undef @metric_types;
         undef($metric_data_fh{$file_id});
         undef $file_id;
+    } else {
+        printf "file_id is not defined, so not going to finish_samples\n";
     }
 }
 
