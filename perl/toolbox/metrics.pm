@@ -105,13 +105,15 @@ sub finish_samples {
                     undef $stored_sample[$idx];
                 }
             }
-	    }
+        }
         for (my $idx = 0; $idx < scalar @metric_types; $idx++) {
             next if (defined $metric_types[$idx]{'purge'} and $metric_types[$idx]{'purge'} == 1);
             my %metric = ( 'idx' => $metric_types[$idx]{'idx'},
                            'desc' => $metric_types[$idx]{'desc'},
                            'names' => $metric_types[$idx]{'names'});
             push(@new_metric_types, \%metric);
+            delete $interval[$idx];
+            #undef $interval[$idx];
         }
         if (scalar @new_metric_types > 0) {
             my $coder = JSON::XS->new->canonical->pretty;
@@ -132,10 +134,10 @@ sub finish_samples {
             printf "There are no metric_types for %s\n", $file_id;
         }
         return $metric_data_file_prefix;
-        undef @stored_sample;
-        undef %metric_idx;
+        @stored_sample = ();;
+        %metric_idx = ();
         undef @metric_types;
-        undef($metric_data_fh{$file_id});
+        delete($metric_data_fh{$file_id});
         undef $file_id;
     } else {
         printf "file_id is not defined, so not going to finish_samples\n";
@@ -155,7 +157,7 @@ sub log_sample {
 
     my $label = get_metric_label($desc_ref, $names_ref);
 
-    if (! exists $metric_idx{$label}) { # This is the first sample for this metric type (of this label)
+    if (! defined $metric_idx{$label} and ! exists $metric_idx{$label}) { # This is the first sample for this metric type (of this label)
         # This is how we track which element in the metrics array belongs to this metric type
         $metric_idx{$label} = scalar @metric_types;
         my $idx = $metric_idx{$label};
@@ -193,7 +195,16 @@ sub log_sample {
         # from a previous sample's end+1, so we derive the begin by subtracting the
         # interval from current sample's end.
         if (defined $stored_sample[$idx] and ! defined $stored_sample[$idx]{'begin'}) {
-            $stored_sample[$idx]{'begin'} = $stored_sample[$idx]{'end'} - $interval[$idx];
+            if (defined $interval[$idx]) {
+                $stored_sample[$idx]{'begin'} = $stored_sample[$idx]{'end'} - $interval[$idx];
+            } else {
+                printf "ERROR: interval[%d] should have been defined, but it is not\n", $idx;
+                printf "file_id: [%s]\n", $file_id;
+                print "sample:\n" . Dumper $sample_ref;
+                print "desc:\n" . Dumper $desc_ref;
+                print "names:\n" . Dumper $names_ref;
+                exit 1;
+            }
         }
         # Once we have a sample with a different value, we can write the previous [possibly consolidated] sample
         if ($stored_sample[$idx]{'value'} != $$sample_ref{'value'}) {
