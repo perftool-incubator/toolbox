@@ -1,5 +1,6 @@
 import copy
 import json
+import lzma
 from pathlib import Path
 
 global metric_types
@@ -60,7 +61,7 @@ def log_sample(this_file_id: str, desc: object, names: object, sample: object):
     global file_id, total_logged_samples, total_cons_samples, stored_sample
     file_id = this_file_id
     metric_data_file_prefix = "metric-data-" + file_id
-    metric_data_file = metric_data_file_prefix + ".csv"
+    metric_data_file = metric_data_file_prefix + ".csv.xz"
     label = get_metric_label(desc, names)
     if label in metric_idx:
         # This is not the first sample for this metric_type (of this label)
@@ -106,14 +107,16 @@ def log_sample(this_file_id: str, desc: object, names: object, sample: object):
         metric_idx[label] = len(metric_types)
         idx = metric_idx[label]
         # store the metric_desc info
-        metric_type = { 'desc': desc, 'names': names }
+        metric_type = { 'desc': None, 'names': None }
+        metric_type['desc'] = desc.copy()
+        metric_type['names'] = names.copy()
         metric_types.append(metric_type)
         # Sample data will not be accumulated in a hash or array, as the memory usage
         # of this script can explode.  Instead, samples are written to a file (but we
         # also merge cronologically adjacent samples with the same valule).
         # Check for and open this file now.
         if file_id not in metric_data_fh:
-            metric_data_fh[file_id] = open(metric_data_file, "w")
+            metric_data_fh[file_id] = lzma.open(metric_data_file, "wt")
         stored_sample[idx] = sample
 
 def finish_samples():
@@ -152,10 +155,10 @@ def finish_samples():
                        'names': metric_types[idx]['names'] }
             new_metric_types.append(metric)
         if len(new_metric_types) > 0:
-            file = "metric-data-" + file_id + ".json"
-            with open(file, 'w') as json_file:
+            file = "metric-data-" + file_id + ".json.xz"
+            with lzma.open(file, 'wt') as json_file:
                 json.dump(new_metric_types, json_file)
-            json_file.close()
+            #json_file.close()
         metric_types = []
         file_id = None
         return metric_data_file_prefix
