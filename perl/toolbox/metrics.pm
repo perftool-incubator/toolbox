@@ -139,12 +139,12 @@ sub finish_samples {
         } else {
             printf "There are no metric_types for %s\n", $file_id;
         }
-        return $metric_data_file_prefix;
         @stored_sample = ();;
         %metric_idx = ();
         undef @metric_types;
         delete($metric_data_fh{$file_id});
         undef $file_id;
+        return $metric_data_file_prefix;
     } else {
         printf "file_id is not defined, so not going to finish_samples\n";
     }
