@@ -158,7 +158,7 @@ def finish_samples():
             file = "metric-data-" + file_id + ".json.xz"
             with lzma.open(file, 'wt') as json_file:
                 json.dump(new_metric_types, json_file)
-            #json_file.close()
+            json_file.close()
         metric_types = []
         file_id = None
         return metric_data_file_prefix
