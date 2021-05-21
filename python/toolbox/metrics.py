@@ -56,7 +56,7 @@ def get_metric_label(desc: object, names: object):
         label = label + "<" + name + ":" + value + ">"
     return label
 
-def log_sample(this_file_id: str, desc: object, names: object, sample: object):
+def log_sample(this_file_id: str, desc: dict, names: dict, sample: dict):
     global file_id, total_logged_samples, total_cons_samples, stored_sample
     file_id = this_file_id
     metric_data_file_prefix = "metric-data-" + file_id
@@ -105,8 +105,11 @@ def log_sample(this_file_id: str, desc: object, names: object, sample: object):
         # This is how we track which element in the metrics array belongs to this metric type
         metric_idx[label] = len(metric_types)
         idx = metric_idx[label]
-        # store the metric_desc info
-        metric_type = { 'desc': desc, 'names': names }
+        metric_type = { 'desc': {}, 'names': {} }
+        for key in desc.keys():
+            metric_type['desc'][key] = desc[key]
+        for key in names.keys():
+            metric_type['names'][key] = names[key]
         metric_types.append(metric_type)
         # Sample data will not be accumulated in a hash or array, as the memory usage
         # of this script can explode.  Instead, samples are written to a file (but we
