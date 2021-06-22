@@ -56,10 +56,22 @@ sub put_json_file {
 sub get_json_file {
     my $filename = shift;
     chomp $filename;
+    if (! defined $filename) {
+        printf "get_json_file(): filename was not defined\n";
+        exit 1;
+    }
     my $schema_filename = shift;
     my $coder = JSON::XS->new;
     debug_log(sprintf "trying to open [%s]\n", $filename);
+    if (! -e $filename) {
+        printf "get_json_file() file [%s] was not found\n", $filename;
+        exit 1;
+    }
     my $log_fh = new IO::Uncompress::UnXz $filename, Transparent => 1 || die "Could not open file " . $filename;
+    if (! defined $log_fh) { # Added as IO::Uncompress::UnXz does not always error out when it should
+        printf "get_json_file() cannot read file: [%s]\n", $filename;
+        exit 1;
+    }
     my $json_text = "";
     while ( <$log_fh> ) {
         $json_text .= $_;
