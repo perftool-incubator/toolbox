@@ -15,4 +15,5 @@ use lib "$ENV{'TOOLBOX_HOME'}/perl";
 use toolbox::json;
 use toolbox::logging;
 use toolbox::cpu;
+use toolbox::metrics;
 ```
