@@ -11,10 +11,86 @@ use IO::Uncompress::UnXz;
 use toolbox::logging;
 
 use Exporter qw(import);
-our @EXPORT = qw(put_json_file get_json_file);
+our @EXPORT = qw(put_json_file get_json_file open_write_text_file open_read_text_file);
 
 use strict;
 use warnings;
+
+
+sub open_write_text_file {
+    my $filename = shift;
+    chomp $filename;
+    if (! defined $filename) {
+        printf "open_write_text_file(): filename was not defined\n";
+        return;
+    }
+    if (! $filename =~ /\.xz/) { # Always default to compression when writing
+        $filename .= ".xz";
+    }
+    debug_log(sprintf "trying to open [%s] for writing\n", $filename);
+    my $fh = new IO::Compress::Xz $filename || die "Could not open file " . $filename;
+    if (! defined $fh) { # Added as IO::compress::Xz does not always error out when it should
+        printf "open_write_text_file() cannot read file: [%s]\n", $filename;
+        return;
+    }
+    return $fh;
+}
+
+sub open_read_text_file {
+    my $filename = shift;
+    chomp $filename;
+    if (! defined $filename) {
+        printf "open_read_text_file(): filename was not defined\n";
+        return;
+    }
+    if (-e $filename . ".xz") {
+        if (-e $filename) {
+            printf "open_read_text_file(): both [%s] and [%s] exist, reading [%s]\n", $filename, $filename . ".xz", $filename . ".xz";
+        }
+        $filename .= ".xz";
+    } elsif (! -e $filename ) {
+        printf "open_read_text_file(): file [%s] was not found\n", $filename;
+        return;
+    }
+    debug_log(sprintf "open_read_text_file(): trying to open [%s]\n", $filename);
+    my $fh = new IO::Uncompress::UnXz $filename, Transparent => 1 || die "Could not open file " . $filename;
+    if (! defined $fh) { # Added as IO::Uncompress::UnXz does not always error out when it should
+        printf "open_read_text_file(): cannot read file: [%s]\n", $filename;
+        return;
+    }
+    return $fh;
+}
+
+sub validate_schema {
+    my $schema_filename = shift;
+    my $filename = shift;
+    my $json_ref = shift;
+    if (defined $schema_filename) {
+        chomp $schema_filename;
+        my $jv = JSON::Validator->new;
+        my $schema_fh = open_read_text_file($schema_filename);
+        if (defined $schema_fh) { 
+            my $json_schema_text;
+            while ( <$schema_fh> ) {
+                $json_schema_text .= $_;
+            }
+            close($schema_fh);
+            chomp $json_schema_text;
+            $jv->schema($json_schema_text);
+            debug_log(sprintf "Going to validate schema with [%s]\n", $schema_filename);
+            my @errors = $jv->validate($json_ref);
+            if (scalar @errors >  0) {
+                printf "Validation errors for file %s with schema %s:\n", $filename, $schema_filename;
+                print Dumper \@errors;
+                return scalar @errors;
+            }
+        } else {
+            print "validate_schema(): open_read_text_file() failed\n";
+            return 1;
+        }
+    }
+    return 0;
+}
 
 sub put_json_file {
     my $filename = shift;
@@ -22,82 +98,56 @@ sub put_json_file {
     my $json_ref = shift;
     my $schema_filename = shift;
     my $coder = JSON::XS->new->canonical->pretty;
-    if (defined $schema_filename and -e $schema_filename) {
-        chomp $schema_filename;
-        my $jv = JSON::Validator->new;
-        my $schema_fh = new IO::Uncompress::UnXz $schema_filename, Transparent => 1 || die "Could not open file " . $schema_filename;
-        my $json_schema_text;
-        while ( <$schema_fh> ) {
-            $json_schema_text .= $_;
+    my $errors = validate_schema($schema_filename, $filename, $json_ref);
+    if ($errors == 0) {
+        my $json_text = $coder->encode($json_ref);
+        if (! defined $json_text) {
+            print "put_json_file(): JSON encode failed\n";
+            return 1;
         }
-        close($schema_fh);
-        chomp $json_schema_text;
-        $jv->schema($json_schema_text);
-        debug_log(sprintf "Going to validate schema with [%s]\n", $schema_filename);
-        my @errors = $jv->validate($json_ref);
-        if (scalar @errors >  0) {
-            printf "Validation errors for file %s with schema %s:\n", $filename, $schema_filename;
-            print Dumper \@errors;
-            exit 1;
+        my $json_fh = open_write_text_file($filename);
+        if (defined $json_fh) {
+            printf $json_fh "%s", $json_text;
+            close($json_fh);
+            return 0;
+        } else {
+            print "put_json_file(): open_write_text_file() failed\n";
+            return 1;
         }
-    }
-    debug_log(sprintf "trying to write [%s]\n", $filename);
-    my $json_text = $coder->encode($json_ref);
-    my $json_fh;
-    if ($filename =~ /xz$/) {
-        $json_fh = new IO::Compress::Xz "$filename" || die("Could not open $filename.xz for writing\n");
     } else {
-        open($json_fh, ">", $filename);
+        printf "put_json_file(): validate_schema() failed with %d errors\n", $errors;
+        return 1;
     }
-    printf $json_fh "%s", $json_text;
-    close($json_fh);
 }
 
 sub get_json_file {
     my $filename = shift;
     chomp $filename;
-    if (! defined $filename) {
-        printf "get_json_file(): filename was not defined\n";
-        exit 1;
-    }
     my $schema_filename = shift;
     my $coder = JSON::XS->new;
-    debug_log(sprintf "trying to open [%s]\n", $filename);
-    if (! -e $filename) {
-        printf "get_json_file() file [%s] was not found\n", $filename;
-        exit 1;
-    }
-    my $log_fh = new IO::Uncompress::UnXz $filename, Transparent => 1 || die "Could not open file " . $filename;
-    if (! defined $log_fh) { # Added as IO::Uncompress::UnXz does not always error out when it should
-        printf "get_json_file() cannot read file: [%s]\n", $filename;
-        exit 1;
-    }
-    my $json_text = "";
-    while ( <$log_fh> ) {
-        $json_text .= $_;
-    }
-    close($log_fh);
-    chomp $json_text;
-    my $json_ref = $coder->decode($json_text) || die "Could not read JSON";
-    if (defined $schema_filename and -e $schema_filename) {
-        chomp $schema_filename;
-        my $jv = JSON::Validator->new;
-        my $schema_fh = new IO::Uncompress::UnXz $schema_filename, Transparent => 1 || die "Could not open file " . $schema_filename;
-        my $json_schema_text;
-        while ( <$schema_fh> ) {
-            $json_schema_text .= $_;
+    my $json_fh = open_read_text_file($filename);
+    if (defined $json_fh) {
+        my $json_text = "";
+        while ( <$json_fh> ) {
+            $json_text .= $_;
         }
-        close($schema_fh);
-        chomp $json_schema_text;
-        $jv->schema($json_schema_text);
-        my @errors = $jv->validate($json_ref);
-        if (scalar @errors >  0) {
-            printf "Validaton errors for file %s with schema %s:\n", $filename, $schema_filename;
-            print Dumper \@errors;
-            exit 1;
+        close($json_fh);
+        chomp $json_text;
+        my $json_ref = $coder->decode($json_text);
+        if (not defined $json_ref) {
+            print "get_json_file(): could not read JSON";
+            return;
         }
+        if (defined validate_schema($schema_filename, $filename, $json_ref)) {
+            return $json_ref;
+        } else {
+            print "get_json_file(): validate_schema() failed\n";
+            return;
+        }
+    } else {
+        print "get_json_file(): open_read_text_file() failed\n";
+        return;
     }
-    return $json_ref;
 }
 
 1;
