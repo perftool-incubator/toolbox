@@ -16,49 +16,53 @@ our @EXPORT = qw(put_json_file get_json_file open_write_text_file open_read_text
 use strict;
 use warnings;
 
-
 sub open_write_text_file {
     my $filename = shift;
     chomp $filename;
     if (! defined $filename) {
-        printf "open_write_text_file(): filename was not defined\n";
-        return;
+        # filename not defined
+        return 1;
     }
-    if (! $filename =~ /\.xz/) { # Always default to compression when writing
+    if ($filename =~ /\.xz$/) {
+        debug_log(sprintf "file [%s] already named for compression\n", $filename);
+    } else {
+        # Always default to compression when writing
         $filename .= ".xz";
+        debug_log(sprintf "Changed filename to [%s]\n", $filename);
     }
     debug_log(sprintf "trying to open [%s] for writing\n", $filename);
-    my $fh = new IO::Compress::Xz $filename || die "Could not open file " . $filename;
-    if (! defined $fh) { # Added as IO::compress::Xz does not always error out when it should
-        printf "open_write_text_file() cannot read file: [%s]\n", $filename;
-        return;
+    my $fh = new IO::Compress::Xz $filename;
+    if (! defined $fh) {
+        # cannot open file;
+        return 3;
     }
     return $fh;
 }
 
 sub open_read_text_file {
     my $filename = shift;
+    my $rc = 0;
     chomp $filename;
     if (! defined $filename) {
-        printf "open_read_text_file(): filename was not defined\n";
-        return;
+        # filename not defined
+        $rc = 1;
     }
     if (-e $filename . ".xz") {
         if (-e $filename) {
-            printf "open_read_text_file(): both [%s] and [%s] exist, reading [%s]\n", $filename, $filename . ".xz", $filename . ".xz";
+            debug_log(sprintf "open_read_text_file(): both [%s] and [%s] exist, reading [%s]\n", $filename, $filename . ".xz", $filename . ".xz");
         }
         $filename .= ".xz";
     } elsif (! -e $filename ) {
-        printf "open_read_text_file(): file [%s] was not found\n", $filename;
-        return;
+        # file not found
+        $rc = 2;
     }
     debug_log(sprintf "open_read_text_file(): trying to open [%s]\n", $filename);
-    my $fh = new IO::Uncompress::UnXz $filename, Transparent => 1 || die "Could not open file " . $filename;
-    if (! defined $fh) { # Added as IO::Uncompress::UnXz does not always error out when it should
-        printf "open_read_text_file(): cannot read file: [%s]\n", $filename;
-        return;
+    my $fh = new IO::Uncompress::UnXz $filename, Transparent => 1;
+    if (! defined $fh) {
+        # cannot open file
+        $rc = 3;
     }
-    return $fh;
+    return ($rc, $fh);
 }
 
 sub validate_schema {
@@ -68,27 +72,39 @@ sub validate_schema {
     if (defined $schema_filename) {
         chomp $schema_filename;
         my $jv = JSON::Validator->new;
-        my $schema_fh = open_read_text_file($schema_filename);
-        if (defined $schema_fh) { 
+        (my $rc, my $schema_fh) = open_read_text_file($schema_filename);
+        if ($rc == 0 and defined $schema_fh) {
             my $json_schema_text;
             while ( <$schema_fh> ) {
                 $json_schema_text .= $_;
             }
             close($schema_fh);
             chomp $json_schema_text;
-            $jv->schema($json_schema_text);
-            debug_log(sprintf "Going to validate schema with [%s]\n", $schema_filename);
-            my @errors = $jv->validate($json_ref);
-            if (scalar @errors >  0) {
-                printf "Validation errors for file %s with schema %s:\n", $filename, $schema_filename;
-                print Dumper \@errors;
-                return scalar @errors;
+            if ($jv->schema($json_schema_text)) {
+                debug_log(sprintf "Going to validate schema with [%s]\n", $schema_filename);
+                my @errors = $jv->validate($json_ref);
+                if (scalar @errors >  0) {
+                    printf "Validation errors for file %s with schema %s:\n", $filename, $schema_filename;
+                    print Dumper \@errors;
+                    # data validation failed
+                    return 5;
+                }
+            } else {
+                # schema invalid
+                return 4;
             }
-        } else {
-            print "validate_schema(): open_read_text_file() failed\n";
+        } elsif ($rc == 1) {
+            # schema file name undefined
             return 1;
+        } elsif ($rc == 2) {
+            # schema file not found
+            return 2;
+        } elsif ($rc == 3) {
+            # cannot open schema file
+            return 3;
         }
     }
+    # no schema or data json validated
     return 0;
 }
 
@@ -98,35 +114,58 @@ sub put_json_file {
     my $json_ref = shift;
     my $schema_filename = shift;
     my $coder = JSON::XS->new->canonical->pretty;
-    my $errors = validate_schema($schema_filename, $filename, $json_ref);
-    if ($errors == 0) {
+    my $result = validate_schema($schema_filename, $filename, $json_ref);
+    if ($result == 0) {
         my $json_text = $coder->encode($json_ref);
         if (! defined $json_text) {
-            print "put_json_file(): JSON encode failed\n";
-            return 1;
+            # data json invalid
+            return 6;
         }
-        my $json_fh = open_write_text_file($filename);
-        if (defined $json_fh) {
+        (my $rc, my $json_fh) = open_write_text_file($filename);
+        if ($rc == 0 and defined $json_fh) {
             printf $json_fh "%s", $json_text;
             close($json_fh);
+            # all good
             return 0;
+        } elsif ($rc == 1) {
+            # data file name undefined
+            return 7;
+        } elsif ($rc == 3) {
+            # cannot open data file
+            return 9;
         } else {
-            print "put_json_file(): open_write_text_file() failed\n";
-            return 1;
+            # something else
+            return $rc;
         }
+    } elsif ($result == 1) {
+        # schema file name undefined
+        return 1
+    } elsif ($result == 2) {
+        # schema file not found
+        return 2;
+    } elsif ($result == 3) {
+        # cannot open schema file
+        return 3;
+    } elsif ($result == 4) {
+        # schema invalid
+        return 4;
+    } elsif ($result == 4) {
+        # validation failed
+        return 5;
     } else {
-        printf "put_json_file(): validate_schema() failed with %d errors\n", $errors;
-        return 1;
+        # something else
+        return $result;
     }
 }
 
 sub get_json_file {
     my $filename = shift;
-    chomp $filename;
     my $schema_filename = shift;
+    chomp $filename;
+    my $json_ref;
     my $coder = JSON::XS->new;
-    my $json_fh = open_read_text_file($filename);
-    if (defined $json_fh) {
+    (my $rc, my $json_fh) = open_read_text_file($filename);
+    if ($rc == 0 and defined $json_fh) {
         my $json_text = "";
         while ( <$json_fh> ) {
             $json_text .= $_;
@@ -135,18 +174,44 @@ sub get_json_file {
         chomp $json_text;
         my $json_ref = $coder->decode($json_text);
         if (not defined $json_ref) {
-            print "get_json_file(): could not read JSON";
-            return;
+            # data json invalid
+            return (6, $json_ref);
         }
-        if (defined validate_schema($schema_filename, $filename, $json_ref)) {
-            return $json_ref;
+        my $result = validate_schema($schema_filename, $filename, $json_ref);
+        if ($result == 0) {
+            # all good, return the json hash reference
+            return (0, $json_ref);
+        } elsif ($result == 1) {
+            # schema file undefined
+            return (1, $json_ref);
+        } elsif ($result == 2) {
+            # schema not found
+            return (2, $json_ref);
+        } elsif ($result == 3) {
+            # cannot open schema file
+            return (3, $json_ref);
+        } elsif ($result == 4) {
+            # schema invalid
+            return (4, $json_ref);
+        } elsif ($result == 4) {
+            # validation failed
+            return (5, $json_ref);
         } else {
-            print "get_json_file(): validate_schema() failed\n";
-            return;
+            # something else
+            return ($result, $json_ref);
         }
+    } elsif ($rc == 1) {
+        # data file name undefined
+        return (7, $json_ref);
+    } elsif ($rc == 2) {
+        # data file not found
+        return (8, $json_ref);
+    } elsif ($rc == 3) {
+        # cannot open data file
+        return (9, $json_ref);
     } else {
-        print "get_json_file(): open_read_text_file() failed\n";
-        return;
+        # something else
+        return ($rc, $json_ref);
     }
 }
 
