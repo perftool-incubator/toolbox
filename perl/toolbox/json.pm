@@ -37,7 +37,7 @@ sub open_write_text_file {
         # cannot open file;
         $rc = 3;
     }
-    return ($fh, $rc);
+    return ($rc, $fh);
 }
 
 sub open_read_text_file {
@@ -63,7 +63,7 @@ sub open_read_text_file {
         # cannot open file
         $rc = 3;
     }
-    return ($fh, $rc);
+    return ($rc, $fh);
 }
 
 sub validate_schema {
@@ -178,42 +178,42 @@ sub get_json_file {
         my $json_ref = $coder->decode($json_text);
         if (not defined $json_ref) {
             debug_log("get_json_file(): data json invalid");
-            return ($json_ref, 6);
+            return (6, $json_ref);
         }
         my $result = validate_schema($schema_filename, $filename, $json_ref);
         if ($result == 0) {
-            return ($json_ref, 0);
+            return (0, $json_ref);
         } elsif ($result == 1) {
             debug_log("get_json_file(): schema file undefined");
-            return ($json_ref, 1);
+            return (1, $json_ref);
         } elsif ($result == 2) {
             debug_log("get_json_file(): schema not found");
-            return ($json_ref, 2);
+            return (2, $json_ref);
         } elsif ($result == 3) {
             debug_log("get_json_file(): cannot open schema file");
-            return ($json_ref, 3);
+            return (3, $json_ref);
         } elsif ($result == 4) {
             debug_log("get_json_file(): schema invalid");
-            return ($json_ref, 4);
+            return (4, $json_ref);
         } elsif ($result == 5) {
             debug_log("get_json_file(): validation failed");
-            return ($json_ref, 5);
+            return (5, $json_ref);
         } else {
             debug_log("get_json_file(): error, something else");
-            return ($json_ref, $result);
+            return ($result, $json_ref);
         }
     } elsif ($rc == 1) {
         debug_log("get_json_file(): data file name undefined");
-        return ($json_ref, 7);
+        return (7, $json_ref);
     } elsif ($rc == 2) {
         debug_log("get_json_file(): data file not found");
-        return ($json_ref, 8);
+        return (8, $json_ref);
     } elsif ($rc == 3) {
         debug_log("get_json_file(): cannot open data file");
-        return ($json_ref, 9);
+        return (9, $json_ref);
     } else {
         debug_log("get_json_file(): something else");
-        return ($json_ref, $rc);
+        return ($rc, $json_ref);
     }
 }
 
