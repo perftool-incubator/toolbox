@@ -19,10 +19,10 @@ use warnings;
 sub open_write_text_file {
     my $filename = shift;
     chomp $filename;
-    my $rc = 0;
+    my $fh;
     if (! defined $filename) {
-        # filename not defined
-        $rc = 1;
+        debug_log("open_write_text_file(): filename not defined\n");
+        return (1, $fh);
     }
     if ($filename =~ /\.xz$/) {
         debug_log(sprintf "open_write_text_file(): file [%s] already named for compression\n", $filename);
@@ -32,21 +32,22 @@ sub open_write_text_file {
         debug_log(sprintf "open_write_text_file(): changed filename to [%s]\n", $filename);
     }
     debug_log(sprintf "open_write_text_file(): trying to open [%s] for writing\n", $filename);
-    my $fh = new IO::Compress::Xz $filename;
+    $fh = new IO::Compress::Xz $filename;
     if (! defined $fh) {
-        # cannot open file;
-        $rc = 3;
+        debug_log("open_write_text_file(): cannot open file");
+        return (3, $fh);
+    } else {
+        return (0, $fh);
     }
-    return ($rc, $fh);
 }
 
 sub open_read_text_file {
     my $filename = shift;
-    my $rc = 0;
+    my $fh;
     chomp $filename;
     if (! defined $filename) {
-        # filename not defined
-        $rc = 1;
+        debug_log("open_read_text_file(): filename not defined\n");
+        return (1, $fh);
     }
     if (-e $filename . ".xz") {
         if (-e $filename) {
@@ -54,16 +55,17 @@ sub open_read_text_file {
         }
         $filename .= ".xz";
     } elsif (! -e $filename ) {
-        # file not found
-        $rc = 2;
+        debug_log("open_read_text_file(): file not found\n");
+        return (2, $fh);
     }
     debug_log(sprintf "open_read_text_file(): trying to open [%s]\n", $filename);
-    my $fh = new IO::Uncompress::UnXz $filename, Transparent => 1;
+    $fh = new IO::Uncompress::UnXz $filename, Transparent => 1;
     if (! defined $fh) {
-        # cannot open file
-        $rc = 3;
+        debug_log("open_read_text_file(): cannot open file\n");
+        return (3, $fh);
+    } else {
+        return (0, $fh);
     }
-    return ($rc, $fh);
 }
 
 sub validate_schema {
@@ -73,7 +75,7 @@ sub validate_schema {
     if (defined $schema_filename) {
         chomp $schema_filename;
         my $jv = JSON::Validator->new;
-        (my $schema_fh, my $rc) = open_read_text_file($schema_filename);
+        (my $rc, my $schema_fh) = open_read_text_file($schema_filename);
         if ($rc == 0 and defined $schema_fh) {
             my $json_schema_text;
             while ( <$schema_fh> ) {
@@ -125,7 +127,7 @@ sub put_json_file {
             debug_log("put_json_file(): data json invalid");
             return 6;
         }
-        (my $json_fh, my $rc) = open_write_text_file($filename);
+        (my $rc, my $json_fh) = open_write_text_file($filename);
         if ($rc == 0 and defined $json_fh) {
             printf $json_fh "%s", $json_text;
             close($json_fh);
@@ -167,7 +169,7 @@ sub get_json_file {
     chomp $filename;
     my $json_ref;
     my $coder = JSON::XS->new;
-    (my $json_fh, my $rc) = open_read_text_file($filename);
+    (my $rc, my $json_fh) = open_read_text_file($filename);
     if ($rc == 0 and defined $json_fh) {
         my $json_text = "";
         while ( <$json_fh> ) {
