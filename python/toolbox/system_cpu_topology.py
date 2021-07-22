@@ -31,7 +31,8 @@ class system_cpu:
                 self.online = int(fh.readline().rstrip())
                 self.log.debug("found cpu=%s online=%s" % (self.cpu_id, self.online))
         else:
-            raise AttributeError("Could not open 'online' file for cpu=%d" % (cpu_id))
+            self.online = 1
+            self.log.debug("found cpu=%s assuming to be online because online file does not exist" % (self.cpu_id))
 
         dir = cpu_dir / 'topology'
         if dir.exists() and dir.is_dir():
