@@ -27,6 +27,16 @@ def process_options():
     myglobal.args = parser.parse_args()
 
 
+def linux_hexmask(hexmask):
+    '''Convert a hexmask into a Linux sysfs compatible hexmask'''
+
+    block_size = 8
+    blocks = int(len(hexmask)/block_size) + (len(hexmask) % block_size > 0)
+    padded_hexmask = hexmask.zfill(block_size * blocks)
+    linux_hexmask = ",".join([padded_hexmask[i:i+block_size] for i in range(0, len(padded_hexmask)-1, block_size)])
+    return(linux_hexmask)
+
+
 def main():
     process_options()
 
@@ -48,7 +58,8 @@ def main():
         mask |= bitmask
 
     print('bitmask={:b}'.format(mask))
-    print('hexmask={:x}'.format(mask))
+    hexmask = '{:x}'.format(mask)
+    print('hexmask={:s}'.format(linux_hexmask(hexmask)))
 
 
 if __name__ == "__main__":
