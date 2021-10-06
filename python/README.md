@@ -20,3 +20,7 @@ else:
     sys.path.append(str(p))
 from toolbox.system_cpu_topology import *
 ```
+
+# python bin template
+
+There is a template for creating Python scripts for placement in the [bin](../bin) called [bin-template.py](bin-template.py).
