@@ -1,0 +1,88 @@
+#!/bin/bash
+# -*- mode: sh; indent-tabs-mode: nil; sh-basic-offset: 4 -*-
+# vim: autoindent tabstop=4 shiftwidth=4 expandtab softtabstop=4 filetype=bash
+
+function exit_error() {
+    local msg="$1"; shift
+    local code="$1"; shift
+    local dir="$1"; shift
+    if [ -z "$code" ]; then
+        code=1
+    fi
+    echo '{"recipient":{"type":"all","id":"all"},"user-object":{"error": '$(echo -e "$msg" | jq -Rs .)'}}' >"$dir/msgs/tx/error"
+    echo "$msg"
+    exit $code
+}
+
+function dump_runtime() {
+    echo env:
+    env
+    echo
+    echo "args; $@"
+    echo
+    echo "pwd:"
+    /bin/pwd
+    echo
+    echo "ls -alR:"
+    ls -alR
+    echo
+    echo "hostname: `hostname`"
+    echo
+    echo filesystems:
+    mount
+    echo
+    echo "ls -l /dev/hugepages"
+    /bin/ls -l /dev/hugepages
+    echo
+    echo "/proc/meminfo"
+    cat /proc/meminfo
+    echo
+    echo DPDK devices:
+    dpdk-devbind -s
+    echo
+    echo netdevs:
+    ls -l /sys/class/net
+    echo
+    echo ip a:
+    ip a
+    echo
+    echo "per-node-hugepages:"
+    for n in 0 1; do
+        path="/sys/devices/system/node/node$n/hugepages/hugepages-1048576kB"
+        echo $path
+        for i in `/bin/ls -1 $path`; do
+            echo $i:
+            cat $path/$i
+        done
+    done
+}
+
+function validate_label() {
+    id=`echo $RS_CS_LABEL | awk -F- '{print $2}'`
+    re='^[1-9][0-9]*$'
+    if [[ ! "$id" =~ $re ]]; then
+        echo "ID must a be a positive interger, exiting"
+        exit 1
+    fi
+}
+
+function validate_sw_prereqs() {
+    local prereq
+    local missing=""
+
+    echo "Checking for software dependencies:"
+    while [ -n "${1}" ]; do
+        prereq="${1}"
+        shift
+
+        if ! command -v ${prereq}; then
+            echo "Missing: ${prereq}"
+            missing+=" ${prereq}"
+        fi
+    done
+
+    if [ -n "${missing}" ]; then
+        echo "ERROR: could not find prereq(s): ${missing}"
+        exit 1
+    fi
+}
