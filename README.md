@@ -3,6 +3,7 @@ The toolbox project contains code libraries and scripts to be shared across the 
 
 Language(s) supported include:
 
+- [bash](bash/)
 - [perl](perl/)
 - [python](python/)
 
