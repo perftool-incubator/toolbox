@@ -9,6 +9,9 @@ function exit_error() {
     if [ -z "$code" ]; then
         code=1
     fi
+    if [ -z "$dir" ]; then
+        dir="."
+    fi
     echo '{"recipient":{"type":"all","id":"all"},"user-object":{"error": '"$(echo -e "$msg" | jq -Rs .)"'}}' >"$dir/msgs/tx/error"
     echo "$msg"
     exit $code
