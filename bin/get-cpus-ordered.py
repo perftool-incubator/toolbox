@@ -157,11 +157,12 @@ def configure_smt_enumeration(cpu_list):
     return(smt_enumeration_list)
 
 def output_cpu_info(label, cpu_list):
-    t_global.log.debug("%s cpus: %d" % (label, len(cpu_list)))
+    t_global.log.debug("%s cpus count: %d" % (label, len(cpu_list)))
     short_cpu_list = system_cpu_topology.formatted_cpu_list(cpu_list)
     formatted_short_cpu_list = ','.join(short_cpu_list)
     t_global.log.debug("%s cpus: %s" % (label, formatted_short_cpu_list))
 
+    t_global.log.info("%s cpus count: %d" % (label, len(cpu_list)))
     cpu_list = ','.join(map(str, cpu_list))
     t_global.log.info("%s cpus: %s" % (label, cpu_list))
 
