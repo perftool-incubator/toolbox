@@ -1,0 +1,30 @@
+{
+    "workshop": {
+        "schema": {
+            "version": "2020.03.02"
+        }
+    },
+    "userenvs": [
+	{
+	    "name": "default",
+	    "requirements": [
+		"perl-modules"
+	    ]
+	}
+    ],
+    "requirements": [
+	{
+	    "name": "perl-modules",
+	    "type": "cpan",
+	    "cpan_info": {
+		"packages": [
+		    "JSON",
+		    "JSON::XS",
+		    "IO::Uncompress::UnXz",
+		    "IO::Compress::Xz",
+		    "JSON::Validator"
+		]
+	    }
+	}
+    ]
+}
