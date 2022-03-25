@@ -17,4 +17,5 @@ use toolbox::logging;
 use toolbox::cpu;
 use toolbox::metrics;
 use toolbox::run;
+use toolbox::jsonsettings;
 ```
