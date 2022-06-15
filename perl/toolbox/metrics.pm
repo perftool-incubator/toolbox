@@ -89,6 +89,10 @@ sub get_metric_label {
 }
 
 sub finish_samples {
+    my $dont_delete = shift;
+    if (! defined $dont_delete) {
+        $dont_delete = 0;
+    }
     if (defined $file_id) {
         my @new_metric_types;
         my $num_deletes = 0;
@@ -96,12 +100,11 @@ sub finish_samples {
         for (my $idx = 0; $idx < scalar @stored_sample; $idx++) {
             if (defined $metric_data_fh{$file_id}) {
                 if (defined $stored_sample[$idx]) {
-                    if ($stored_sample[$idx]{'value'} == 0 and ! defined $num_written_samples[$idx]) {
-                        # This metric has only 1 sample and the value is 0, so it "did not do any work".  Therefore, we can just
-                        # not create this metric at all.
-                        # TODO: This optimization might be better if the metric source/type could opt in/out of this.
-                        # There might be certain metrics which users want to query and get a "0" instead of a metric
-                        # not existing.  FWIW, this should *not* be a problem for metric-aggregation for throughput class.
+                    if ($stored_sample[$idx]{'value'} == 0 and
+                        ! defined $num_written_samples[$idx] and
+                        $dont_delete == 0) {
+                        # This metric has only 1 sample and the value is 0, so it "did not do any work".
+                        # Therefore, we can just not create this metric at all.
                         $metric_types[$idx]{'purge'} = 1;
                         $num_deletes++;
                     } else {
