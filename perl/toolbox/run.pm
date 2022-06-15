@@ -18,8 +18,22 @@ sub run_cmd {
         $cmd .= " 2>&1";
     }
 
-    my $cmd_output = `$cmd`;
+    my $tmp_file = `mktemp`;
+    chomp($tmp_file);
+    my $tmp_cmd = $cmd . " > $tmp_file";
+
+    my $foo = `$tmp_cmd`;
     my $cmd_rc = $? >> 8;
+
+    my $cmd_output = "";
+    if (open my $fh, '<', $tmp_file) {
+        while (<$fh>) {
+            $cmd_output .= $_;
+        }
+        close $fh;
+    } else {
+        $cmd_output = sprintf "Failed to open %s to read the output from \"%s\"!\n", $tmp_file, $cmd;
+    }
 
     return ($cmd, $cmd_output, $cmd_rc);
 }
