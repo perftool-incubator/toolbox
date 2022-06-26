@@ -18,10 +18,13 @@
 	    "type": "cpan",
 	    "cpan_info": {
 		"packages": [
+            "PMQS/Compress-Raw-Zlib-2.105.tar.gz",
+            "PMQS/Compress-Raw-Lzma-2.103.tar.gz",
+            "PMQS/Compress-Raw-Bzip2-2.103.tar.gz",
+            "PMQS/IO-Compress-2.106.tar.gz",
+            "PMQS/IO-Compress-Lzma-2.103.tar.gz",
 		    "JSON",
 		    "JSON::XS",
-		    "IO::Uncompress::UnXz",
-		    "IO::Compress::Xz",
 		    "JSON::Validator"
 		]
 	    }
