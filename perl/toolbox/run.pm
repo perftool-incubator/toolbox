@@ -14,15 +14,11 @@ use warnings;
 sub run_cmd {
     my $cmd = shift;
 
-    if ($cmd !~ /2>&1/) {
-        $cmd .= " 2>&1";
-    }
-
     my $tmp_file = `mktemp`;
     chomp($tmp_file);
     my $tmp_cmd = $cmd . " > $tmp_file";
 
-    my $foo = `$tmp_cmd`;
+    my $foo = `$tmp_cmd 2>&1`;
     my $cmd_rc = $? >> 8;
 
     my $cmd_output = "";
