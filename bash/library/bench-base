@@ -102,16 +102,20 @@ function validate_clocksource() {
     if pushd ${clocksource_dir} > /dev/null; then
         clocksource=$(cat current_clocksource)
         available_clocksources=$(cat available_clocksource)
+        supported_clocksources="tsc kvm-clock"
 
         popd > /dev/null
 
-        if [ "${clocksource}" != "tsc" ]; then
-            echo "ERROR: Clocksource is not TSC.  Current clocksource is ${clocksource}.  Available clocksources are: ${available_clocksources}"
-            exit 2
-        else
-            echo "Verified clocksource is TSC"
-            return 0
-        fi
+        case "${clocksource}" in
+            "tsc"|"kvm-clock")
+                "Verified clocksource is ${clocksource}"
+                return 0
+                ;;
+            *)
+                echo "ERROR: Unsupported clocksource.  Current clocksource is ${clocksource}.  Available clocksources are: ${available_clocksources}.  Supported clocksources are: ${supported_clocksources}"
+                exit 2
+                ;;
+        esac
     else
         echo "ERROR: Could not pushd to ${clocksource_dir}"
         exit 1
