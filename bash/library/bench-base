@@ -108,7 +108,7 @@ function validate_clocksource() {
 
         case "${clocksource}" in
             "tsc"|"kvm-clock")
-                "Verified clocksource is ${clocksource}"
+                echo "Verified clocksource is ${clocksource}"
                 return 0
                 ;;
             *)
