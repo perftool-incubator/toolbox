@@ -113,11 +113,11 @@ function validate_clocksource() {
                 ;;
             *)
                 echo "ERROR: Unsupported clocksource.  Current clocksource is ${clocksource}.  Available clocksources are: ${available_clocksources}.  Supported clocksources are: ${supported_clocksources}"
-                exit 2
+                return 2
                 ;;
         esac
     else
         echo "ERROR: Could not pushd to ${clocksource_dir}"
-        exit 1
+        return 1
     fi
 }
