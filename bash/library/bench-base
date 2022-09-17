@@ -102,12 +102,12 @@ function validate_clocksource() {
     if pushd ${clocksource_dir} > /dev/null; then
         clocksource=$(cat current_clocksource)
         available_clocksources=$(cat available_clocksource)
-        supported_clocksources="tsc kvm-clock"
+        supported_clocksources="tsc kvm-clock hyperv_clocksource_tsc_page"
 
         popd > /dev/null
 
         case "${clocksource}" in
-            "tsc"|"kvm-clock")
+            "tsc"|"kvm-clock"|"hyperv_clocksource_tsc_page")
                 echo "Verified clocksource is ${clocksource}"
                 return 0
                 ;;
