@@ -56,7 +56,7 @@ def process_options():
                         help = "How many SMT siblings per core to use",
                         default = 2,
                         type = int,
-                        choices = range(1, 8))
+                        choices = range(1, 9))
 
     parser.add_argument("--cpu",
                         dest = "cpu_list",
