@@ -65,6 +65,13 @@ def process_options():
                         action = 'append',
                         type = int)
 
+    parser.add_argument("--numa-node",
+                        dest = "numa_node_list",
+                        help = "One or more NUMA nodes to filter on (only include CPUs which are on these NUMA nodes)",
+                        default = [],
+                        action = 'append',
+                        type = int)
+
     t_global.args = parser.parse_args()
 
     if t_global.args.log_level == 'debug':
@@ -82,6 +89,18 @@ def process_options():
 
     return(0)
 
+def filter_numa_nodes(cpu_list):
+    node_filtered_list = []
+
+    for cpu in cpu_list:
+        node = t_global.system_cpus.get_node(cpu)
+        if node in t_global.args.numa_node_list:
+            node_filtered_list.append(cpu)
+        else:
+            t_global.log.debug("filter_numa_nodes: dropping cpu '%d' because it is located on non-filtered numa node '%d'" % (cpu, node))
+
+    return(node_filtered_list)
+
 def disable_smt(cpu_list):
     smt_off_list = []
 
@@ -89,7 +108,7 @@ def disable_smt(cpu_list):
 
     for cpu in cpu_list:
         if not cpu in cpu_set:
-            t_global.log.debug("disable_smt: skipping cpu '%d' because it has be processed already" % (cpu))
+            t_global.log.debug("disable_smt: skipping cpu '%d' because it has been processed already" % (cpu))
             continue
 
         cpu_set.remove(cpu)
@@ -171,8 +190,6 @@ def output_cpu_info(label, cpu_list):
 def main():
     process_options()
 
-    cpu_list = []
-
     t_global.system_cpus = system_cpu_topology(log = t_global.log)
 
     output_cpu_info("all", t_global.system_cpus.get_all_cpus())
@@ -188,16 +205,28 @@ def main():
 
         output_cpu_info("requested", t_global.args.cpu_list)
 
+    cpu_list = t_global.args.cpu_list
+
+    if len(t_global.args.numa_node_list) == 0:
+        t_global.log.debug("allowing cpus from all numa nodes")
+    else:
+        t_global.log.info("Limiting to CPUs from the following NUMA nodes: %s" % (t_global.args.numa_node_list))
+
+        cpu_list = filter_numa_nodes(cpu_list)
+
+        output_cpu_info("numa filtered", cpu_list)
+
     if t_global.args.smt_mode == "on":
         t_global.log.info("SMT is on -> all CPUs from a sibling list are included")
         
-        cpu_list = copy.deepcopy(t_global.args.cpu_list)
+        cpu_list = copy.deepcopy(cpu_list)
     elif t_global.args.smt_mode == "off":
         t_global.log.info("SMT is off -> only including one CPU from each sibling list")
 
-        cpu_list = disable_smt(t_global.args.cpu_list)
+        cpu_list = disable_smt(cpu_list)
 
         output_cpu_info("smt off", cpu_list)
+
     if t_global.args.smt_mode == "on":
         t_global.log.info("SMT is on -> using '%s' mode to order SMT siblings" % (t_global.args.smt_enumeration))
 

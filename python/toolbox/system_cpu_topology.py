@@ -201,6 +201,16 @@ class system_cpu_topology:
 
         return(siblings)
 
+    def get_node(self, cpu):
+        node = None
+
+        if cpu in self.cpus:
+            node = self.cpus[cpu].get_node()
+        else:
+            raise AttributeError("get_node: invalid cpu %d" % (cpu))
+
+        return(node)
+
     def get_node_siblings(self, cpu):
         siblings = []
 
