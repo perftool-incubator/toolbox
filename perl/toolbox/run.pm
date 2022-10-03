@@ -16,7 +16,7 @@ sub run_cmd {
 
     my $tmp_file = `mktemp`;
     chomp($tmp_file);
-    my $tmp_cmd = $cmd . " > $tmp_file";
+    my $tmp_cmd = "set -o pipefail; " . $cmd . " > $tmp_file";
 
     my $foo = `$tmp_cmd 2>&1`;
     my $cmd_rc = $? >> 8;
