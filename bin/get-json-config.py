@@ -20,7 +20,7 @@ def process_options():
                         dest = "config",
                         required = True,
                         help = "Configuration type to get from the json file",
-                        choices = [ "mv-params", "tool-params", "passthru-args" ])
+                        choices = [ "mv-params", "tool-params", "passthru-args", "tags", "endpoint" ])
 
     args = parser.parse_args()
     return args
@@ -35,7 +35,7 @@ def dump_json(obj, format = 'readable'):
         sep += ' '
 
     return json.dumps(obj, indent = indentation, separators = (',', sep),
-                      sort_keys = True)
+                      sort_keys = False)
 
 def load_json_file(json_file):
     """Load JSON file and return a json object"""
@@ -48,14 +48,32 @@ def load_json_file(json_file):
          return None
     return input_json
 
+def json_to_stream(json_str):
+    """Parse key:value from a JSON object and transform into a stream"""
+    stream=""
+    json_obj = json.loads(json_str)
+    for key in json_obj:
+        val = json_obj[key]
+        stream += key
+        # keys without values do not add ":" e.g. --endpoint k8s,
+        if len(val) > 0:
+            stream += ":" + val
+        stream += ","
+    # remove last ","
+    if len(stream)>0:
+        stream = stream[:-1]
+    return stream
+
 def main():
     """Main function of get-json-config.py tool"""
 
     global args
 
     input_json = load_json_file(args.json_file)
-    print(dump_json(input_json[args.config]))
-
+    output = dump_json(input_json[args.config])
+    if args.config == "tags" or args.config == "endpoint":
+        output = json_to_stream(output)
+    print(output)
 
 if __name__ == "__main__":
     args = process_options()
