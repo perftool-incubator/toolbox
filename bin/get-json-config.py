@@ -43,8 +43,20 @@ def load_json_file(json_file):
          input_fp = open(json_file, 'r')
          input_json = json.load(input_fp)
          input_fp.close()
-    except:
-         print("Could not load JSON file %s" % (json_file))
+    except FileNotFoundError:
+         print("Could not find JSON file %s" % (json_file))
+         return None
+    except IOError:
+         print("Could not open/read JSON file %s" % (json_file))
+         return None
+    except Exception as err:
+         print("Unexpected error opening JSON file %s: %s" % (json_file, err))
+         return None
+    except JSONDecodeError as err:
+         print("Decoding JSON file %s has failed: %s" % (json_file, err))
+         return None
+    except TypeError as err:
+         print("JSON object type error: %s" % (err))
          return None
     return input_json
 
@@ -70,6 +82,10 @@ def main():
     global args
 
     input_json = load_json_file(args.json_file)
+    if input_json is None:
+        print("Error: Failed to load %s" % (args.json_file))
+        return 1
+
     output = dump_json(input_json[args.config])
     if args.config == "tags" or args.config == "endpoint":
         output = json_to_stream(output)
