@@ -117,7 +117,7 @@ def log_sample(this_file_id: str, desc: object, names: object, sample: object):
         # Check for and open this file now.
         if file_id not in metric_data_fh:
             metric_data_fh[file_id] = lzma.open(metric_data_file, "wt")
-        stored_sample[idx] = sample
+        stored_sample[idx] = sample.copy()
 
 def finish_samples():
     global file_id, stored_sample, interval, metric_idx, metric_types
