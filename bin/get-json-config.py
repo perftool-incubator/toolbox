@@ -2,9 +2,12 @@
 
 '''Utility to dump json section from the crucible run file'''
 
+import os
 import argparse
 import sys
 import json
+from jsonschema import validate
+from jsonschema import exceptions
 
 def process_options():
     """Handle the CLI argument parsing options"""
@@ -43,11 +46,11 @@ def load_json_file(json_file):
          input_fp = open(json_file, 'r')
          input_json = json.load(input_fp)
          input_fp.close()
-    except FileNotFoundError:
-         print("Could not find JSON file %s" % (json_file))
+    except FileNotFoundError as err:
+         print("Could not find JSON file %s: %s" % (json_file, err))
          return None
-    except IOError:
-         print("Could not open/read JSON file %s" % (json_file))
+    except IOError as err:
+         print("Could not open/read JSON file %s: %s" % (json_file, err))
          return None
     except Exception as err:
          print("Unexpected error opening JSON file %s: %s" % (json_file, err))
@@ -76,6 +79,20 @@ def json_to_stream(json_str):
         stream = stream[:-1]
     return stream
 
+def validate_schema(input_json):
+    """Validate json with schema file"""
+
+    SCHEMA_FILE = "%s/../JSON/schema.json" % (os.path.dirname(os.path.abspath(__file__)))
+    try:
+        schema_fp = open(SCHEMA_FILE, 'r')
+        schema_contents = json.load(schema_fp)
+        schema_fp.close()
+        validate(instance = input_json, schema = schema_contents)
+    except Exception as err:
+        print("JSON schema validation error: %s" % (err))
+        return False
+    return True
+
 def main():
     """Main function of get-json-config.py tool"""
 
@@ -83,7 +100,9 @@ def main():
 
     input_json = load_json_file(args.json_file)
     if input_json is None:
-        print("Error: Failed to load %s" % (args.json_file))
+        return 1
+
+    if not validate_schema(input_json):
         return 1
 
     output = dump_json(input_json[args.config])

@@ -1,0 +1,36 @@
+{
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "type": "object",
+    "properties": {
+        "schema": {
+            "type": "object",
+            "properties": {
+                "version": {
+                    "type": "string",
+                    "enum": [
+                        "2022.11.08"
+                    ]
+                }
+            }
+        },
+        "tags": {
+            "type": "object"
+        },
+        "endpoint": {
+            "type": "object"
+        },
+        "tool-params": {
+            "type": "array"
+        },
+        "mv-params": {
+            "type": "object"
+        },
+        "passthru-args": {
+            "type": "string"
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "mv-params"
+    ]
+}
