@@ -28,7 +28,7 @@ def process_options():
     args = parser.parse_args()
     return args
 
-def dump_json(obj, format = 'readable'):
+def dump_json(obj, key, format = 'readable'):
     """Dump json in readable or parseable format"""
     # Parseable format has no indentation
     indentation = None
@@ -37,8 +37,12 @@ def dump_json(obj, format = 'readable'):
         indentation = 4
         sep += ' '
 
-    return json.dumps(obj, indent = indentation, separators = (',', sep),
-                      sort_keys = False)
+    try:
+        json_str = json.dumps(obj[key], indent = indentation, separators = (',', sep),
+                              sort_keys = False)
+        return json_str
+    except KeyError:
+        return None
 
 def load_json_file(json_file):
     """Load JSON file and return a json object"""
@@ -66,7 +70,13 @@ def load_json_file(json_file):
 def json_to_stream(json_str):
     """Parse key:value from a JSON object and transform into a stream"""
     stream=""
-    json_obj = json.loads(json_str)
+    if json_str is None:
+        return ""
+    try:
+        json_obj = json.loads(json_str)
+    except Exception as err:
+        print("Error loading JSON: %s" % (err))
+        return None
     for key in json_obj:
         val = json_obj[key]
         stream += key
@@ -105,7 +115,7 @@ def main():
     if not validate_schema(input_json):
         return 1
 
-    output = dump_json(input_json[args.config])
+    output = dump_json(input_json, args.config)
     if args.config == "tags" or args.config == "endpoint":
         output = json_to_stream(output)
     print(output)
