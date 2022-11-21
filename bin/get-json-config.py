@@ -25,6 +25,12 @@ def process_options():
                         help = "Configuration type to get from the json file",
                         choices = [ "mv-params", "tool-params", "passthru-args", "tags", "endpoint" ])
 
+    parser.add_argument("--index",
+                        dest = "index",
+                        help = "Crucible config index (e.g. 2 => endpoint[2]",
+                        default = 0,
+                        type = int)
+
     args = parser.parse_args()
     return args
 
@@ -67,26 +73,39 @@ def load_json_file(json_file):
          return None
     return input_json
 
-def json_to_stream(json_str):
-    """Parse key:value from a JSON object and transform into a stream"""
+def json_to_stream(json_obj, cfg, idx):
+    """Parse key:value from a JSON object/block and transform into a stream"""
     stream=""
-    if json_str is None:
+    if json_obj is None:
         return ""
+
     try:
-        json_obj = json.loads(json_str)
+        # arrays w/ multiple key:value objects e.g. "endpoint" block
+        if isinstance(json_obj[cfg], list):
+            json_blk = json_obj[cfg][idx]
+        else:
+            # single object w/ key:value pairs e.g. "tags" block
+            json_blk = json_obj[cfg]
     except Exception as err:
-        print("Error loading JSON: %s" % (err))
+        print("Error converting JSON into stream: %s" % (err))
         return None
-    for key in json_obj:
-        val = json_obj[key]
-        stream += key
-        # keys without values do not add ":" e.g. --endpoint k8s,
-        if len(val) > 0:
-            stream += ":" + val
-        stream += ","
+
+    for key in json_blk:
+        val = json_blk[key]
+        if isinstance(val, str):
+            stream = key + ":" + val + ","
+        elif isinstance(val, list):
+            for idx in range(len(val)):
+                item_val = val[idx]
+                stream += key + ":" + item_val + ","
+        else:
+            raise Exception("Error: Unexpected object type %s" % (type(val)))
+            return None
+
     # remove last ","
     if len(stream)>0:
         stream = stream[:-1]
+
     return stream
 
 def validate_schema(input_json):
@@ -115,9 +134,10 @@ def main():
     if not validate_schema(input_json):
         return 1
 
-    output = dump_json(input_json, args.config)
-    if args.config == "tags" or args.config == "endpoint":
-        output = json_to_stream(output)
+    if args.config == "endpoint" or args.config == "tags":
+        output = json_to_stream(input_json, args.config, args.index)
+    else:
+        output = dump_json(input_json, args.config)
     print(output)
 
 if __name__ == "__main__":
