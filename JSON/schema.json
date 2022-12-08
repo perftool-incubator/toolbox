@@ -14,10 +14,16 @@
             }
         },
         "tags": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
         },
         "endpoint": {
-            "type": "object"
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/endpoint_args"
+            }
         },
         "tool-params": {
             "type": "array"
@@ -32,5 +38,29 @@
     "additionalProperties": false,
     "required": [
         "mv-params"
-    ]
+    ],
+    "definitions": {
+        "endpoint_args": {
+            "type": "object",
+            "patternProperties": {
+                "^.+$": {
+                    "anyOf": [
+                        {
+                            "type": "array",
+                            "minItems": 1,
+                            "uniqueItems": true,
+                            "items": {
+                                "type": "string",
+                                "minLength": 1
+                            }
+                        },
+                        {
+                            "type": "string",
+                            "minLength": 0
+                        }
+                    ]
+                }
+            }
+        }
+    }
 }

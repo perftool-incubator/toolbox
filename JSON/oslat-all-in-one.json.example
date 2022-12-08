@@ -26,15 +26,19 @@
     "tags": {
         "run": "single-jsonTAGS"
     },
-    "endpoint": {
-        "k8s": "",
-        "COMMON_ENDPOINT_ARGS": "",
-        "COMMON_K8S_ENDPOINT_ARGS": "",
-        "client": "1-2",
-        "server": "1",
-        "cpu-partitioning": "default:1",
-        "securityContext": "client-1:SCRIPT_DIR/k8s-endpoint/securityContext-oslat.json",
-        "securityContext": "client-2:SCRIPT_DIR/k8s-endpoint/securityContext-oslat.json"
-    },
+    "endpoint": [
+        {
+            "type": "k8s",
+            "COMMON_ENDPOINT_ARGS": "",
+            "COMMON_K8S_ENDPOINT_ARGS": "",
+            "client": "1-2",
+            "server": "1",
+            "cpu-partitioning": [ "default:1" ],
+            "securityContext": [
+                "client-1:SCRIPT_DIR/k8s-endpoint/securityContext-oslat.json",
+                "client-2:SCRIPT_DIR/k8s-endpoint/securityContext-oslat.json"
+            ]
+        }
+    ],
     "passthru-args": ""
 }
