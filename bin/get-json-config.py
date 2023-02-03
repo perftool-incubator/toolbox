@@ -93,7 +93,9 @@ def json_to_stream(json_obj, cfg, idx):
     for key in json_blk:
         val = json_blk[key]
         if isinstance(val, str):
-            stream = key + ":" + val + ","
+            if len(key) > 0:
+                stream += key + ":"
+            stream += val + ","
         elif isinstance(val, list):
             for idx in range(len(val)):
                 item_val = val[idx]
