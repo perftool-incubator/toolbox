@@ -1,0 +1,36 @@
+name: unittest
+
+on:
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  get-json-config:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          cd bin
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install pytest pytest-html jsonschema
+
+      - name: Run unit tests
+        run: |
+          cd bin
+          source .venv/bin/activate
+          # TODO: rename files with dash that are used as modules e.g. get-json-config.py
+          # Workaround is to create a symlink to the file or use __import__("foo-bar")
+          pytest -v --html=report.html --self-contained-html getjsonconfig.py tests/*.py
+
+      - name: Upload html report
+        uses: actions/upload-artifact@v2
+        with:
+          name: report
+          path: bin/report.html
+
