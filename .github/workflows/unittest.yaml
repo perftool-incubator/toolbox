@@ -3,8 +3,18 @@ name: unittest
 on:
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - LICENSE
+      - '**.md'
+      - .github/workflows/faux-unittest.yaml
+      - .github/workflows/faux-crucible-ci.yaml
+      - 'docs/**'
 
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.ref }}/unittest
+  cancel-in-progress: true
 
 jobs:
   get-json-config:
@@ -34,3 +44,10 @@ jobs:
           name: report
           path: bin/report.html
 
+  unittest-complete:
+    runs-on: ubuntu-latest
+    needs:
+    - get-json-config
+    steps:
+    - name: Confirm Success
+      run: echo "unittest-complete"
