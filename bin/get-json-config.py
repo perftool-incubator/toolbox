@@ -6,6 +6,7 @@ import os
 import argparse
 import sys
 import json
+import tempfile
 from jsonschema import validate
 from jsonschema import exceptions
 
@@ -49,6 +50,17 @@ def dump_json(obj, key, format = 'readable'):
         return json_str
     except KeyError:
         return None
+
+def json_blk_to_file(endpoint_setting, json_filename):
+    """Generate json file from endpoint setting block"""
+    try:
+        with open(json_filename, 'w', encoding='utf-8') as f:
+            json.dump(endpoint_setting, f, indent=4)
+            f.close()
+    except Exception as err:
+         print("Unexpected error writing JSON file %s: %s" % (json_filename, err))
+         return None
+    return True
 
 def load_json_file(json_file):
     """Load JSON file and return a json object"""
@@ -99,21 +111,48 @@ def json_to_stream(json_obj, cfg, idx):
         return None
 
     for key in json_blk:
-        val = json_blk[key]
-        #if isinstance(val, str) or isinstance(val, unicode):
-        if isinstance(val, list):
-            for idx in range(len(val)):
-                item_val = val[idx]
-                stream += key + ":" + item_val + ","
+        if cfg == 'endpoint' and key == 'config':
+            for ecfg in range(0, len(json_blk[key])):
+                # process targets e.g. 'client-1' for each config section
+                tg_list = []
+                targets = json_blk[key][ecfg]['targets']
+                if isinstance(targets, str):
+                    tg_list = [ targets ]
+                elif isinstance(targets, list):
+                    for tg in targets:
+                        tg_name = tg['role'] + '-' + str(tg['ids'])
+                        tg_list.append(tg_name)
+
+                # get the individual sections e.g. 'securityContext'
+                for st in json_blk[key][ecfg]['settings']:
+                    st_val = json_blk[key][ecfg]['settings'][st]
+                    if isinstance(st_val, dict):
+                        # auto-detect json config blocks and from settings and
+                        # create inidividual json files e.g. securityContext
+                        st_blk = { st: st_val }
+                        # create json file for each setting block
+                        tf = tempfile.NamedTemporaryFile(prefix='__'+st+'__',
+                                      suffix='.tmp.json', delete=False)
+                        json_blk_to_file(st_blk, tf.name)
+                        st_val = tf.name
+                    for tg_name in tg_list:
+                        stream += st + ':' + tg_name + ':' + str(st_val) + ','
         else:
-            try:
-                val_str = str(val)
-                if len(key) > 0:
-                    stream += key + ":"
-                stream += val_str + ","
-            except:
-                raise Exception("Error: Unexpected object type %s" % (type(val)))
-                return None
+            val = json_blk[key]
+            if isinstance(val, list):
+                for idx in range(len(val)):
+                    item_val = val[idx]
+                    stream += key + ':' + item_val + ','
+            else:
+                try:
+                    val_str = str(val)
+                    # TODO: Handle endpoint type in rickshaw like the other args
+                    if key != 'type':
+                        stream += key + ':'
+                    stream += val_str + ','
+                except:
+                    raise Exception("Error: Unexpected object type %s" % (type(val)))
+                    return None
 
     # remove last ","
     if len(stream)>0:
@@ -121,15 +160,26 @@ def json_to_stream(json_obj, cfg, idx):
 
     return stream
 
-def validate_schema(input_json):
+def validate_schema(input_json, schema_file = None):
     """Validate json with schema file"""
+    # schema_file defaults to general schema.json for the full run-file
+    schema_path = "%s/../JSON/" % (os.path.dirname(os.path.abspath(__file__)))
+    schema_default = "schema.json"
 
-    SCHEMA_FILE = "%s/../JSON/schema.json" % (os.path.dirname(os.path.abspath(__file__)))
     try:
-        schema_fp = open(SCHEMA_FILE, 'r')
-        schema_contents = json.load(schema_fp)
-        schema_fp.close()
-        validate(instance = input_json, schema = schema_contents)
+        # use block sub-schema if schema_file is specified
+        if (schema_file is None):
+            schema_json = schema_path + schema_default
+        else:
+            schema_json = schema_path + schema_file
+            if not os.path.isfile(schema_json) or not os.path.exists(schema_json):
+                # TODO: enforce validation when all schemas are created
+                print("JSON schema not found: %s. Skipping validation." % (schema_json))
+                return True
+        schema_obj = load_json_file(schema_json)
+        if schema_obj is None:
+            return False
+        validate(instance = input_json, schema = schema_obj)
     except Exception as err:
         print("JSON schema validation error: %s" % (err))
         return False
@@ -148,6 +198,11 @@ def main():
         return 1
 
     if args.config == "endpoint" or args.config == "tags":
+        if args.config == "endpoint":
+            endp = input_json[args.config][args.index]["type"]
+            if not validate_schema(input_json[args.config][args.index],
+                                    "schema-" + endp + ".json"):
+                return 1
         output = json_to_stream(input_json, args.config, args.index)
     else:
         output = dump_json(input_json, args.config)
