@@ -75,9 +75,10 @@ def load_json_file(json_file):
 
 def json_to_stream(json_obj, cfg, idx):
     """Parse key:value from a JSON object/block and transform into a stream"""
-    stream=""
+    stream = ""
+    err_msg = None
     if json_obj is None:
-        return ""
+        return None
 
     try:
         # arrays w/ multiple key:value objects e.g. "endpoint" block
@@ -86,23 +87,33 @@ def json_to_stream(json_obj, cfg, idx):
         else:
             # single object w/ key:value pairs e.g. "tags" block
             json_blk = json_obj[cfg]
+    except IndexError as err:
+        err_msg="{} => Invalid index: {} block has {} element(s).".format(
+                        err, cfg, len(json_obj[cfg]))
     except Exception as err:
-        print("Error converting JSON into stream: %s" % (err))
+        err_msg="{} => Failed to convert block {} into stream.".format(
+                        err, cfg)
+
+    if err_msg is not None:
+        print("ERROR: %s" % (err_msg))
         return None
 
     for key in json_blk:
         val = json_blk[key]
-        if isinstance(val, str):
-            if len(key) > 0:
-                stream += key + ":"
-            stream += val + ","
-        elif isinstance(val, list):
+        #if isinstance(val, str) or isinstance(val, unicode):
+        if isinstance(val, list):
             for idx in range(len(val)):
                 item_val = val[idx]
                 stream += key + ":" + item_val + ","
         else:
-            raise Exception("Error: Unexpected object type %s" % (type(val)))
-            return None
+            try:
+                val_str = str(val)
+                if len(key) > 0:
+                    stream += key + ":"
+                stream += val_str + ","
+            except:
+                raise Exception("Error: Unexpected object type %s" % (type(val)))
+                return None
 
     # remove last ","
     if len(stream)>0:

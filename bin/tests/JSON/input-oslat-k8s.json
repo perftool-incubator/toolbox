@@ -1,0 +1,48 @@
+{
+    "mv-params": {
+        "global-options": [
+            {
+                "name": "common-params",
+                "params": [
+                    { "arg": "duration", "vals": [ "10" ], "role": "client" },
+                    { "arg": "rtprio", "vals": [ "1" ], "role": "client" }
+                ]
+            }
+        ],
+        "sets": [
+            {
+                "include": "common-params"
+            }
+        ]
+    },
+    "tool-params": [
+        {
+            "tool": "sysstat",
+            "params": [
+                { "arg": "subtools", "val": "mpstat", "enabled": "yes" }
+            ]
+        },
+        {
+            "tool": "procstat"
+        }
+    ],
+    "tags": {
+        "run": "single-json-all-in-one",
+        "userenv": "alma8"
+    },
+    "endpoint": [
+        {
+            "": "k8s",
+            "controller-ip": "CONTROLLER_IP",
+            "host": "CI_ENDPOINT_HOST",
+            "user": "CI_ENDPOINT_USER",
+            "unique-project": "1",
+            "kubeconfig": "0",
+            "client": "1",
+            "server": "1",
+            "cpu-partitioning": [ "default:1" ],
+            "securityContext": "client-1:SCRIPT_DIR/k8s-endpoint/securityContext-oslat.json"
+        }
+    ],
+    "passthru-args": " --num-samples 1 --test-order s"
+}
