@@ -1,1 +1,1 @@
-k8s,controller-ip:CONTROLLER_IP,host:CI_ENDPOINT_HOST,user:CI_ENDPOINT_USER,unique-project:1,kubeconfig:0,client:1,server:1,cpu-partitioning:default:1,securityContext:client-1:SCRIPT_DIR/k8s-endpoint/securityContext-oslat.json
+k8s,controller-ip:CONTROLLER_IP,host:CI_ENDPOINT_HOST,user:CI_ENDPOINT_USER,userenv:alma8,unique-project:1,kubeconfig:0,server:1,client:2

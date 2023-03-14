@@ -25,7 +25,11 @@ class TestGetJsonConfig:
         endpoints_stream = getjsonconfig.json_to_stream(load_json_file, "endpoint", 0)
         expected_stream = self._load_file("output-oslat-k8s-endpoints.stream")
 
-        assert endpoints_stream == expected_stream
+        # endpoint config generates random stream, so we match only general args
+        assert expected_stream in endpoints_stream
+        assert 'securityContext:client-1:' in endpoints_stream
+        assert 'resources:client-2:' in endpoints_stream
+        assert 'annotations:server-1:' in endpoints_stream
 
     """Test if json_to_stream converts tags block to a stream"""
     @pytest.mark.parametrize("load_json_file",
@@ -62,3 +66,17 @@ class TestGetJsonConfig:
         assert 'Invalid index' in out
         assert input_json is None
 
+    """Test validate_schema using default schema for null schema_file arg"""
+    @pytest.mark.parametrize("load_json_file",
+                             [ "input-oslat-k8s.json" ], indirect=True)
+    def test_validate_schema_default(self, load_json_file):
+        validated_json = getjsonconfig.validate_schema(load_json_file)
+        assert validated_json is True
+
+    """Test validate_schema using endpoint schema and returns True"""
+    @pytest.mark.parametrize("load_json_file",
+                             [ "input-oslat-k8s.json" ], indirect=True)
+    def test_validate_schema_endpoint(self, load_json_file):
+        validated_json = getjsonconfig.validate_schema(
+                             load_json_file["endpoint"], "schema-endpoint.json")
+        assert validated_json is True
