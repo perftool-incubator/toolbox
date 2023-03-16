@@ -73,10 +73,67 @@ class TestGetJsonConfig:
         validated_json = getjsonconfig.validate_schema(load_json_file)
         assert validated_json is True
 
-    """Test validate_schema using endpoint schema and returns True"""
+    """Test validate_schema using k8s schema and returns True"""
     @pytest.mark.parametrize("load_json_file",
                              [ "input-oslat-k8s.json" ], indirect=True)
-    def test_validate_schema_endpoint(self, load_json_file):
+    def test_validate_schema_endpoint_k8s(self, load_json_file):
         validated_json = getjsonconfig.validate_schema(
-                             load_json_file["endpoint"], "schema-endpoint.json")
+                             load_json_file["endpoint"][0], "schema-k8s.json")
         assert validated_json is True
+
+    """Test validate_schema using osp schema and returns True"""
+    @pytest.mark.parametrize("load_json_file",
+                             [ "input-oslat-osp.json" ], indirect=True)
+    def test_validate_schema_endpoint_osp(self, load_json_file):
+        validated_json = getjsonconfig.validate_schema(
+                             load_json_file["endpoint"][0], "schema-osp.json")
+        assert validated_json is True
+
+    """Test validate_schema using remotehost schema and returns True"""
+    @pytest.mark.parametrize("load_json_file",
+                             [ "input-oslat-remotehost.json" ], indirect=True)
+    def test_validate_schema_endpoint_remotehost(self, load_json_file):
+        validated_json = getjsonconfig.validate_schema(
+                             load_json_file["endpoint"][0], "schema-remotehost.json")
+        assert validated_json is True
+
+    """Test validate_schema using kvm schema and returns True"""
+    @pytest.mark.parametrize("load_json_file",
+                             [ "input-oslat-kvm.json" ], indirect=True)
+    def test_validate_schema_endpoint_kvm(self, load_json_file):
+        validated_json = getjsonconfig.validate_schema(
+                             load_json_file["endpoint"][0], "schema-kvm.json")
+        assert validated_json is True
+
+    """Test validate_schema using invalid schema and returns False"""
+    @pytest.mark.parametrize("load_json_file",
+                             [ "input-oslat-invalid.json" ], indirect=True)
+    def test_validate_schema_endpoint_invalid(self, load_json_file):
+        validated_json = getjsonconfig.validate_schema(
+                             load_json_file["endpoint"][0], "schema-invalid.json")
+        assert validated_json is False
+
+    """Test validate_schema w/ missing endpoint type and returns False"""
+    @pytest.mark.parametrize("load_json_file",
+                             [ "input-oslat-notype.json" ], indirect=True)
+    def test_validate_schema_endpoint_notype(self, load_json_file):
+        validated_json = getjsonconfig.validate_schema(
+                             load_json_file["endpoint"][0], "schema-null.json")
+        assert validated_json is False
+
+    """Test validate_schema using multiple endpoints and returns True"""
+    @pytest.mark.parametrize("load_json_file",
+                             [ "input-oslat-k8s-osp.json" ], indirect=True)
+    def test_validate_schema_endpoint_k8s_osp(self, load_json_file):
+        validated_json_1 = getjsonconfig.validate_schema(
+                             load_json_file["endpoint"][0], "schema-k8s.json")
+        validated_json_2 = getjsonconfig.validate_schema(
+                             load_json_file["endpoint"][1], "schema-osp.json")
+        endpoints_stream = getjsonconfig.json_to_stream(load_json_file, "endpoint", 1)
+        expected_stream = self._load_file("output-oslat-k8s-osp.stream")
+
+        assert validated_json_1 is True
+        assert validated_json_2 is True
+        # endpoint config generates random stream, so we match only general args
+        assert expected_stream in endpoints_stream
+        assert 'custom:client-1:' in endpoints_stream
