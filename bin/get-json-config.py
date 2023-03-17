@@ -172,10 +172,6 @@ def validate_schema(input_json, schema_file = None):
             schema_json = schema_path + schema_default
         else:
             schema_json = schema_path + schema_file
-            if not os.path.isfile(schema_json) or not os.path.exists(schema_json):
-                # TODO: enforce validation when all schemas are created
-                print("JSON schema not found: %s. Skipping validation." % (schema_json))
-                return True
         schema_obj = load_json_file(schema_json)
         if schema_obj is None:
             return False
@@ -199,10 +195,15 @@ def main():
 
     if args.config == "endpoint" or args.config == "tags":
         if args.config == "endpoint":
-            endp = input_json[args.config][args.index]["type"]
-            if not validate_schema(input_json[args.config][args.index],
-                                    "schema-" + endp + ".json"):
+            try:
+                endp = input_json[args.config][args.index]["type"]
+            except:
+                endp = "null"
                 return 1
+            finally:
+                if not validate_schema(input_json[args.config][args.index],
+                                        "schema-" + endp + ".json"):
+                    return 1
         output = json_to_stream(input_json, args.config, args.index)
     else:
         output = dump_json(input_json, args.config)
