@@ -28,6 +28,22 @@ metric_data_file = ''
 
 
 def write_sample(idx: str, begin: int, end: int, value: float):
+    """
+    Write a single sample of metric data to the metric data file.
+
+    Args:
+        idx (str): The index of the metric type to which this sample belongs.
+        begin (int): The start time of the sample in milliseconds.
+        end (int): The end time of the sample in milliseconds.
+        value (float): The value of the sample.
+
+    Raises:
+        NameError: If a file handle has not been defined for the current file ID.
+
+    Returns:
+        None
+    """
+    
     if file_id is not None:
         try:
             metric_data_fh[file_id]
@@ -47,6 +63,17 @@ def write_sample(idx: str, begin: int, end: int, value: float):
         num_written_samples[idx] += 1
 
 def get_metric_label(desc: object, names: object):
+    """
+    Get a unique label for a metric type based on its description and names.
+
+    Args:
+        desc (object): A dictionary describing the metric type.
+        names (object): A dictionary of names and values for the metric.
+
+    Returns:
+        str: A string containing a unique label for the metric type.
+    """
+
     label = desc['source'] +  ":" + desc['type'] + ":"
     # Build a label to uniquely identify this metric type
     for name in names.keys():
@@ -58,6 +85,19 @@ def get_metric_label(desc: object, names: object):
     return label
 
 def log_sample(this_file_id: str, desc: object, names: object, sample: object):
+    """
+    Log a single sample of metric data.
+
+    Args:
+        this_file_id (str): The ID of the file to which the metric data should be written.
+        desc (object): A dictionary describing the metric type.
+        names (object): A dictionary of names and values for the metric.
+        sample (object): A dictionary containing the sample data.
+
+    Returns:
+        None
+    """
+    
     global file_id, total_logged_samples, total_cons_samples, stored_sample
     file_id = this_file_id
     metric_data_file_prefix = "metric-data-" + file_id
@@ -120,6 +160,13 @@ def log_sample(this_file_id: str, desc: object, names: object, sample: object):
         stored_sample[idx] = sample.copy()
 
 def finish_samples():
+    """
+    Write the final metric data to disk and reset the global variables.
+
+    Returns:
+        str: The prefix of the metric data file that was written.
+    """
+    
     global file_id, stored_sample, interval, metric_idx, metric_types
     if file_id is not None:
         new_metric_types = []
