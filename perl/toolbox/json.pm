@@ -11,7 +11,7 @@ use IO::Uncompress::UnXz;
 use toolbox::logging;
 
 use Exporter qw(import);
-our @EXPORT = qw(put_json_file get_json_file open_write_text_file open_read_text_file);
+our @EXPORT = qw(put_json_file get_json_file open_write_text_file open_read_text_file validate_schema);
 
 use strict;
 use warnings;
