@@ -99,9 +99,6 @@ sub validate_schema {
                 debug_log(sprintf "validate_schema(): schema invalid [%s]\n", $schema_filename);
                 return 4;
             }
-        } elsif ($rc == 1) {
-            debug_log("validate_schema(): schema file name undefined\n");
-            return 1;
         } elsif ($rc == 2) {
             debug_log(sprintf "validate_schema(): schema file not found [%s]\n", $schema_filename);
             return 2;
@@ -120,47 +117,49 @@ sub put_json_file {
     my $json_ref = shift;
     my $schema_filename = shift;
     my $coder = JSON::XS->new->canonical->pretty;
-    my $result = validate_schema($schema_filename, $filename, $json_ref);
-    if ($result == 0) {
-        debug_log("put_json_file(): validate_schema passed\n");
-        my $json_text = $coder->encode($json_ref);
-        if (! defined $json_text) {
-            debug_log("put_json_file(): data json invalid\n");
-            return 6;
-        }
-        (my $rc, my $json_fh) = open_write_text_file($filename);
-        if ($rc == 0 and defined $json_fh) {
-            printf $json_fh "%s", $json_text;
-            close($json_fh);
-            return 0;
-        } elsif ($rc == 1) {
-            debug_log("put_json_file(): data file name undefined\n");
-            return 7;
-        } elsif ($rc == 3) {
-            debug_log(sprintf "put_json_file(): cannot open data file [%s]\n", $filename);
-            return 9;
+
+    if (defined $schema_filename) {
+        my $result = validate_schema($schema_filename, $filename, $json_ref);
+        if ($result == 0) {
+            debug_log("put_json_file(): validate_schema passed\n");
+        } elsif ($result == 2) {
+            debug_log(sprintf "put_json_file(): schema file not found [%s]\n", $schema_filename);
+            return 2;
+        } elsif ($result == 3) {
+            debug_log(sprintf "put_json_file(): cannot open schema file [%s]\n". $schema_filename);
+            return 3;
+        } elsif ($result == 4) {
+            debug_log(sprintf "put_json_file(): schema invalid [%s]\n", $schema_filename);
+            return 4;
+        } elsif ($result == 4) {
+            debug_log(sprintf "put_json_file(): validation failed [%s]\n", $filename);
+            return 5;
         } else {
-            debug_log(sprintf "put_json_file(): error, something else [%s]\n", $filename);
-            return $rc;
+            debug_log(sprintf "put_json_file(): something else [%s]\n", $filename);
+            return $result;
         }
-    } elsif ($result == 1) {
-        debug_log("put_json_file(): schema file name undefined\n");
-        return 1
-    } elsif ($result == 2) {
-        debug_log(sprintf "put_json_file(): schema file not found [%s]\n", $schema_filename);
-        return 2;
-    } elsif ($result == 3) {
-        debug_log(sprintf "put_json_file(): cannot open schema file [%s]\n". $schema_filename);
-        return 3;
-    } elsif ($result == 4) {
-        debug_log(sprintf "put_json_file(): schema invalid [%s]\n", $schema_filename);
-        return 4;
-    } elsif ($result == 4) {
-        debug_log(sprintf "put_json_file(): validation failed [%s]\n", $filename);
-        return 5;
+    }
+
+    my $json_text = $coder->encode($json_ref);
+    if (! defined $json_text) {
+        debug_log("put_json_file(): data json invalid\n");
+        return 6;
+    }
+
+    (my $rc, my $json_fh) = open_write_text_file($filename);
+    if ($rc == 0 and defined $json_fh) {
+        printf $json_fh "%s", $json_text;
+        close($json_fh);
+        return 0;
+    } elsif ($rc == 1) {
+        debug_log("put_json_file(): data file name undefined\n");
+        return 7;
+    } elsif ($rc == 3) {
+        debug_log(sprintf "put_json_file(): cannot open data file [%s]\n", $filename);
+        return 9;
     } else {
-        debug_log(sprintf "put_json_file(): something else [%s]\n", $filename);
-        return $result;
+        debug_log(sprintf "put_json_file(): error, something else [%s]\n", $filename);
+        return $rc;
     }
 }
 
@@ -183,27 +182,28 @@ sub get_json_file {
             debug_log("get_json_file(): data json invalid\n");
             return (6, $json_ref);
         }
-        my $result = validate_schema($schema_filename, $filename, $json_ref);
-        if ($result == 0) {
-            return (0, $json_ref);
-        } elsif ($result == 1) {
-            debug_log(sprintf "get_json_file(): schema file undefined\n");
-            return (1, $json_ref);
-        } elsif ($result == 2) {
-            debug_log(sprintf "get_json_file(): schema not found [%s]\n", $schema_filename);
-            return (2, $json_ref);
-        } elsif ($result == 3) {
-            debug_log(sprintf "get_json_file(): cannot open schema file [%s]\n", $schema_filename);
-            return (3, $json_ref);
-        } elsif ($result == 4) {
-            debug_log(sprintf "get_json_file(): schema invalid [%s]\n", $schema_filename);
-            return (4, $json_ref);
-        } elsif ($result == 5) {
-            debug_log(sprintf "get_json_file(): validation failed [%s]\n", $filename);
-            return (5, $json_ref);
+        if (defined $schema_filename) {
+            my $result = validate_schema($schema_filename, $filename, $json_ref);
+            if ($result == 0) {
+                return (0, $json_ref);
+            } elsif ($result == 2) {
+                debug_log(sprintf "get_json_file(): schema not found [%s]\n", $schema_filename);
+                return (2, $json_ref);
+            } elsif ($result == 3) {
+                debug_log(sprintf "get_json_file(): cannot open schema file [%s]\n", $schema_filename);
+                return (3, $json_ref);
+            } elsif ($result == 4) {
+                debug_log(sprintf "get_json_file(): schema invalid [%s]\n", $schema_filename);
+                return (4, $json_ref);
+            } elsif ($result == 5) {
+                debug_log(sprintf "get_json_file(): validation failed [%s]\n", $filename);
+                return (5, $json_ref);
+            } else {
+                debug_log(sprintf "get_json_file(): error, something else [%s]\n", $filename);
+                return ($result, $json_ref);
+            }
         } else {
-            debug_log(sprintf "get_json_file(): error, something else [%s]\n", $filename);
-            return ($result, $json_ref);
+            return (0, $json_ref);
         }
     } elsif ($rc == 1) {
         debug_log("get_json_file(): data file name undefined\n");
