@@ -5,7 +5,45 @@ from pathlib import Path
 log_format = '%(asctime)s %(levelname)s: %(message)s'
 
 class system_cpu:
+    """
+    A class that represents a single CPU and provides methods to extract and store information about the CPU.
+
+    Attributes:
+    cpu_id (int): The ID of the CPU.
+    online (int): A flag that indicates whether the CPU is online or not.
+    physical_package_id (int): The physical package ID of the CPU.
+    core_id (int): The core ID of the CPU.
+    die_id (int): The die ID of the CPU.
+    cores_cpus_list (list[int]): A list of CPU IDs of the cores associated with the CPU.
+    core_siblings_list (list[int]): A list of CPU IDs of the siblings associated with the core that the CPU belongs to.
+    die_cpus_list (list[int]): A list of CPU IDs of the dies associated with the CPU.
+    package_cpus_list (list[int]): A list of CPU IDs of the packages associated with the CPU.
+    thread_siblings_list (list[int]): A list of CPU IDs of the threads associated with the CPU.
+    numa_node (int): The NUMA node that the CPU belongs to.
+    numa_node_cpus_list (list[int]): A list of CPU IDs of the CPUs that belong to the same NUMA node as the CPU.
+
+    Methods:
+    __init__(self, cpu_dir, log = None, debug = False): Constructs a system_cpu object and extracts information about the CPU from the sysfs directory.
+    get_id(self): Returns the ID of the CPU.
+    get_online(self): Returns the online flag of the CPU.
+    get_thread_siblings(self): Returns a list of CPU IDs of the threads associated with the CPU.
+    get_node_siblings(self): Returns a list of CPU IDs of the CPUs that belong to the same NUMA node as the CPU.
+    get_node(self): Returns the NUMA node that the CPU belongs to.
+    """
+    
     def __init__(self, cpu_dir, log = None, debug = False):
+        """
+        Initialize the system_cpu object.
+
+        Parameters:
+        cpu_dir (Path): A Path object representing the CPU directory in /sys/devices/system/cpu.
+        log (logging.Logger): Optional, a logger object to be used. If None, a new logger object is created.
+        debug (bool): Optional, set to True to enable debug logging.
+
+        Returns:
+        None
+        """
+        
         if not log is None:
             self.log = log
         else:
@@ -130,22 +168,59 @@ class system_cpu:
         return(None)
 
     def get_id(self):
+        # Returns the ID of the CPU.
         return(self.cpu_id)
 
     def get_online(self):
+        # Returns the online flag of the CPU.
         return(self.online)
 
     def get_thread_siblings(self):
+        # Returns a list of CPU IDs of the threads associated with the CPU.
         return(self.thread_siblings_list)
 
     def get_node_siblings(self):
+        # Returns a list of CPU IDs of the CPUs that belong to the same NUMA node as the CPU.
         return(self.numa_node_cpus_list)
 
     def get_node(self):
+        # Returns the NUMA node that the CPU belongs to.
         return(self.numa_node)
 
 class system_cpu_topology:
+    """
+    A class that represents the CPU topology of a system and provides methods to extract and store information about the CPUs.
+
+    Attributes:
+    sysfs_path (str): The path to the sysfs directory that contains information about the system's CPUs.
+    cpus (dict[int, system_cpu]): A dictionary containing system_cpu objects representing the system's CPUs.
+
+    Methods:
+    __init__(self, sysfs_path='/sys/devices/system/cpu', log = None, debug = False): Constructs a system_cpu_topology object and extracts information about the system's CPUs.
+    discover(self): Discovers and constructs system_cpu objects representing the system's CPUs and stores them in a dictionary.
+    get_all_cpus(self): Returns a list of all CPU IDs in the system.
+    get_online_cpus(self): Returns a list of online CPU IDs in the system.
+    get_thread_siblings(self, cpu): Returns a list of CPU IDs of the threads associated with a specified CPU.
+    get_node(self, cpu): Returns the NUMA node that a specified CPU belongs to.
+    get_node_siblings(self, cpu): Returns a list of CPU IDs of the CPUs that belong to the same NUMA node as a specified CPU.
+    get_cpu_node(self, cpu): Returns the NUMA node that a specified CPU belongs to.
+    parse_cpu_list(input_list): A static method that parses a string containing a comma-separated list of CPUs and returns a list of their IDs.
+    formatted_cpu_list(cpu_list): A static method that takes a list of CPU IDs and returns a formatted string containing ranges of sequential CPUs.
+    """
+    
     def __init__(self, sysfs_path='/sys/devices/system/cpu', log = None, debug = False):
+        """
+        Initialize the system_cpu_topology object.
+
+        Parameters:
+        sysfs_path (str): Optional, the path to the sysfs directory that contains the CPU information. Defaults to '/sys/devices/system/cpu'.
+        log (logging.Logger): Optional, a logger object to be used. If None, a new logger object is created.
+        debug (bool): Optional, set to True to enable debug logging.
+
+        Returns:
+        None
+        """
+        
         self.sysfs_path = sysfs_path
 
         if not log is None:
@@ -163,6 +238,8 @@ class system_cpu_topology:
         return(None)
 
     def discover(self):
+        # Discover all CPUs on the system and create a system_cpu object for each one.
+
         self.cpus = {}
 
         path = Path(self.sysfs_path)
@@ -177,6 +254,16 @@ class system_cpu_topology:
         return(0)
 
     def get_all_cpus(self):
+        """
+        Get a list of all CPU IDs on the system.
+
+        Parameters:
+        None
+
+        Returns:
+        list[int]: A list of all CPU IDs on the system.
+        """
+
         cpus = []
         for cpu in self.cpus:
             cpus.append(self.cpus[cpu].get_id())
@@ -184,6 +271,16 @@ class system_cpu_topology:
         return(cpus)
 
     def get_online_cpus(self):
+        """
+        Get a list of online CPU IDs on the system.
+
+        Parameters:
+        None
+
+        Returns:
+        list[int]: A list of online CPU IDs on the system.
+        """
+
         cpus = []
         for cpu in self.cpus:
             if self.cpus[cpu].get_online():
@@ -192,6 +289,16 @@ class system_cpu_topology:
         return(cpus)
 
     def get_thread_siblings(self, cpu):
+        """
+        Get a list of thread sibling CPU IDs for the given CPU.
+
+        Parameters:
+        cpu (int): The ID of the CPU to get thread sibling information for.
+
+        Returns:
+        list[int]: A list of thread sibling CPU IDs for the given CPU.
+        """
+
         siblings = []
 
         if cpu in self.cpus:
@@ -202,6 +309,16 @@ class system_cpu_topology:
         return(siblings)
 
     def get_node(self, cpu):
+        """
+        Get the NUMA node for the given CPU.
+
+        Parameters:
+        cpu (int): The ID of the CPU to get NUMA node information for.
+
+        Returns:
+        int: The NUMA node for the given CPU.
+        """
+
         node = None
 
         if cpu in self.cpus:
@@ -212,6 +329,16 @@ class system_cpu_topology:
         return(node)
 
     def get_node_siblings(self, cpu):
+        """
+        Get a list of CPU IDs in the same NUMA node as the given CPU.
+
+        Parameters:
+        cpu (int): The ID of the CPU to get NUMA node sibling information for.
+
+        Returns:
+        list[int]: A list of CPU IDs in the same NUMA node as the given CPU.
+        """
+
         siblings = []
 
         if cpu in self.cpus:
@@ -222,6 +349,16 @@ class system_cpu_topology:
         return(siblings)
 
     def get_cpu_node(self, cpu):
+        """
+        Get the NUMA node that the given CPU belongs to.
+
+        Parameters:
+        cpu (int): The ID of the CPU to get the NUMA node for.
+
+        Returns:
+        int: The NUMA node that the given CPU belongs to.
+        """
+
         if cpu in self.cpus:
             return(self.cpus[cpu].get_node())
         else:
@@ -229,6 +366,16 @@ class system_cpu_topology:
 
     @staticmethod
     def parse_cpu_list(input_list):
+        """
+        Parse a CPU list string into a list of individual CPU IDs.
+
+        Parameters:
+        input_list (str): A string containing a comma-separated list of CPU IDs or ranges.
+
+        Returns:
+        list[int]: A list of individual CPU IDs extracted from the input string.
+        """
+
         output_list = []
         for item in input_list.split(','):
             # check for a cpu range instead of a lone cpu
@@ -242,6 +389,16 @@ class system_cpu_topology:
 
     @staticmethod
     def formatted_cpu_list(cpu_list):
+        """
+        Convert a list of CPU IDs into a formatted string containing individual CPU IDs and/or CPU ID ranges.
+
+        Parameters:
+        cpu_list (list[int]): A list of CPU IDs to be converted into a formatted string.
+
+        Returns:
+        str: A string containing individual CPU IDs and/or CPU ID ranges.
+        """
+
         formatted_list = []
 
         # copy the list so that we can modify it (sort, remove)
