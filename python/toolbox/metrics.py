@@ -98,7 +98,7 @@ def log_sample(this_file_id: str, desc: object, names: object, sample: object):
         None
     """
     
-    global file_id, total_logged_samples, total_cons_samples, stored_sample
+    global file_id, total_logged_samples, total_cons_samples, stored_sample, metric_data_file_prefix
     file_id = this_file_id
     metric_data_file_prefix = "metric-data-" + file_id
     metric_data_file = metric_data_file_prefix + ".csv.xz"
@@ -167,7 +167,7 @@ def finish_samples():
         str: The prefix of the metric data file that was written.
     """
     
-    global file_id, stored_sample, interval, metric_idx, metric_types
+    global file_id, stored_sample, interval, metric_idx, metric_types, metric_data_file_prefix
     if file_id is not None:
         new_metric_types = []
         num_deletes = 0
