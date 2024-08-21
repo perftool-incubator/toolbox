@@ -95,29 +95,29 @@ function validate_sw_prereqs() {
 }
 
 function validate_clocksource() {
-    local clocksource clocksource_dir available_clocksources
+    local clocksource clocksource_dir available_clocksources forbidden_clocksources
 
     clocksource_dir="/sys/devices/system/clocksource/clocksource0"
 
     if pushd ${clocksource_dir} > /dev/null; then
-        clocksource=$(cat current_clocksource)
-        available_clocksources=$(cat available_clocksource)
-        supported_clocksources="tsc kvm-clock hyperv_clocksource_tsc_page"
+        clocksource="$(cat current_clocksource)"
+        available_clocksources="$(cat available_clocksource)"
+        forbidden_clocksources="hpet"
 
         popd > /dev/null
 
-        case "${clocksource}" in
-            "tsc"|"kvm-clock"|"hyperv_clocksource_tsc_page")
-                echo "Verified clocksource is ${clocksource}"
+        if [[ "${available_clocksources}" == *"${clocksource}"* ]]; then
+            if [[ "${forbidden_clocksources}" != *"${clocksource}"* ]]; then
+                echo "Verified clocksource is ${clocksource}."
                 return 0
-                ;;
-            *)
-                echo "ERROR: Unsupported clocksource.  Current clocksource is ${clocksource}.  Available clocksources are: ${available_clocksources}.  Supported clocksources are: ${supported_clocksources}"
-                return 2
-                ;;
-        esac
+            fi
+        fi
+        echo "ERROR: Unsupported clocksource.  Current clocksource is ${clocksource}."
+        echo "Available clocksources are: ${available_clocksources}."
+        echo "Forbidden clocksources are: ${forbidden_clocksources}."
+        return 2
     else
-        echo "ERROR: Could not pushd to ${clocksource_dir}"
+        echo "ERROR: Could not pushd to ${clocksource_dir} and verify clocksource."
         return 1
     fi
 }
