@@ -159,7 +159,7 @@ def log_sample(this_file_id: str, desc: object, names: object, sample: object):
             metric_data_fh[file_id] = lzma.open(metric_data_file, "wt")
         stored_sample[idx] = sample.copy()
 
-def finish_samples():
+def finish_samples(dont_delete=False):
     """
     Write the final metric data to disk and reset the global variables.
 
@@ -174,7 +174,8 @@ def finish_samples():
         # All of the stored samples need to be written
         for idx in range(0, len(stored_sample)):
             if file_id in metric_data_fh.keys():
-                if stored_sample[idx]['value'] == 0 and idx not in num_written_samples.keys():
+                if (stored_sample[idx]['value'] == 0 and idx not in num_written_samples.keys() and
+                    and dont_delete is False):
                     # This metric has only 1 sample and the value is 0, so it "did not do any work".  Therefore, we can just
                     # not create this metric at all.
                     # TODO: This optimization might be better if the metric source/type could opt in/out of this.
