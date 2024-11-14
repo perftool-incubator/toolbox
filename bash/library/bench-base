@@ -121,3 +121,93 @@ function validate_clocksource() {
         return 1
     fi
 }
+
+function disable_balance_v1()
+{
+    local cpulist="$1"; shift
+	local cpu=""
+	local file=
+	local flags_cur=
+	for cpu in `echo ${cpulist} | sed -e 's/,/ /g'`; do
+		for file in $(find /proc/sys/kernel/sched_domain/cpu$cpu -name flags -print); do
+			flags_cur=$(cat $file)
+			flags_cur=$((flags_cur & 0xfffe))
+			echo $flags_cur > $file
+		done
+	done
+}
+
+function enable_balance_v1()
+{
+    local cpulist="$1"; shift
+	local cpu=""
+	local file=
+	local flags_cur=
+	for cpu in `echo ${cpulist} | sed -e 's/,/ /g'`; do
+		for file in $(find /proc/sys/kernel/sched_domain/cpu$cpu -name flags -print); do
+			flags_cur=$(cat $file)
+			flags_cur=$((flags_cur | 0x1))
+			echo $flags_cur > $file
+		done
+	done
+}
+
+function enable_balance_v2()
+{
+    echo member > /sys/fs/cgroup/crucible_no_balance/cpuset.cpus.partition
+    echo -cpuset > /sys/fs/cgroup/cgroup.subtree_control
+    rmdir /sys/fs/cgroup/crucible_no_balance
+}
+
+function disable_balance_v2()
+{
+    local cpulist="$1"; shift
+    echo +cpuset > /sys/fs/cgroup/cgroup.subtree_control
+    mkdir -p /sys/fs/cgroup/crucible_no_balance
+    echo $cpulist > /sys/fs/cgroup/crucible_no_balance/cpuset.cpus
+    echo isolated > /sys/fs/cgroup/crucible_no_balance/cpuset.cpus.partition
+}
+
+function enable_balance()
+{
+    local cpulist="$1"; shift
+    local debug="$1"; shift
+
+    if [ -n "$debug" ]; then
+        echo Y > /sys/kernel/debug/sched/verbose
+    fi
+
+    cmd=$(mount | grep cgroup | awk '{ print $1 }')
+    if [[ "$cmd" =~ "cgroup2" ]]; then
+        enable_balance_v2
+    else
+        enable_balance_v1 $cpulist
+    fi
+
+    if [ -n "$debug" ]; then
+        echo N > /sys/kernel/debug/sched/verbose
+    fi
+}
+
+function disable_balance()
+{
+    local cpulist="$1"; shift
+    local debug="$1"; shift
+
+    if [ -n "$debug" ]; then
+        echo Y > /sys/kernel/debug/sched/verbose
+    fi
+
+    cmd=$(mount | grep cgroup | awk '{ print $1 }')
+    if [[ "$cmd" =~ "cgroup2" ]]; then
+        disable_balance_v2 $cpulist
+    else
+        disable_balance_v1 $cpulist
+    fi
+
+    if [ -n "$debug" ]; then
+        echo N > /sys/kernel/debug/sched/verbose
+    fi
+}
+
+
