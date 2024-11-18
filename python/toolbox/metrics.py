@@ -175,7 +175,7 @@ def finish_samples(dont_delete=False):
         for idx in range(0, len(stored_sample)):
             if file_id in metric_data_fh.keys():
                 if (stored_sample[idx]['value'] == 0 and idx not in num_written_samples.keys() and
-                    and dont_delete is False):
+                    dont_delete is False):
                     # This metric has only 1 sample and the value is 0, so it "did not do any work".  Therefore, we can just
                     # not create this metric at all.
                     # TODO: This optimization might be better if the metric source/type could opt in/out of this.
