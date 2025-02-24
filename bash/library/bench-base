@@ -122,38 +122,68 @@ function validate_clocksource() {
     fi
 }
 
+function cgroup2()
+{
+    set -x
+    cmd=$(mount | grep cgroup | awk '{ print $1 }')
+    if [[ "$cmd" =~ "cgroup2" ]]; then
+       echo "cgroup_v2 is present"
+       return 1
+     fi
+    return 0
+}
+
+function show_balance()
+{
+    set -x
+    local cpulist="$1"; shift
+    dmesg | grep -i sched-domain
+    if [[ cgroup_v2 ]]; then
+        grep . /sys/fs/cgroup/cgroup.subtree_control
+    else
+        for cpu in `echo ${cpulist} | sed -e 's/,/ /g'`; do
+            for file in $(find /proc/sys/kernel/sched_domain/cpu$cpu -name flags -print); do
+                grep . $file
+            done
+       done
+    fi
+}
+
 function disable_balance_v1()
 {
+    set -x
     local cpulist="$1"; shift
-	local cpu=""
-	local file=
-	local flags_cur=
-	for cpu in `echo ${cpulist} | sed -e 's/,/ /g'`; do
-		for file in $(find /proc/sys/kernel/sched_domain/cpu$cpu -name flags -print); do
-			flags_cur=$(cat $file)
-			flags_cur=$((flags_cur & 0xfffe))
-			echo $flags_cur > $file
-		done
-	done
+    local cpu=""
+    local file=
+    local flags_cur=
+    for cpu in `echo ${cpulist} | sed -e 's/,/ /g'`; do
+        for file in $(find /proc/sys/kernel/sched_domain/cpu$cpu -name flags -print); do
+            flags_cur=$(cat $file)
+            flags_cur=$((flags_cur & 0xfffe))
+            echo $flags_cur > $file
+        done
+    done
 }
 
 function enable_balance_v1()
 {
+    set -x
     local cpulist="$1"; shift
-	local cpu=""
-	local file=
-	local flags_cur=
-	for cpu in `echo ${cpulist} | sed -e 's/,/ /g'`; do
-		for file in $(find /proc/sys/kernel/sched_domain/cpu$cpu -name flags -print); do
-			flags_cur=$(cat $file)
-			flags_cur=$((flags_cur | 0x1))
-			echo $flags_cur > $file
-		done
-	done
+    local cpu=""
+    local file=
+    local flags_cur=
+    for cpu in `echo ${cpulist} | sed -e 's/,/ /g'`; do
+        for file in $(find /proc/sys/kernel/sched_domain/cpu$cpu -name flags -print); do
+            flags_cur=$(cat $file)
+            flags_cur=$((flags_cur | 0x1))
+            echo $flags_cur > $file
+        done
+    done
 }
 
 function enable_balance_v2()
 {
+    set -x
     echo member > /sys/fs/cgroup/crucible_no_balance/cpuset.cpus.partition
     echo -cpuset > /sys/fs/cgroup/cgroup.subtree_control
     rmdir /sys/fs/cgroup/crucible_no_balance
@@ -161,6 +191,7 @@ function enable_balance_v2()
 
 function disable_balance_v2()
 {
+    set -x
     local cpulist="$1"; shift
     echo +cpuset > /sys/fs/cgroup/cgroup.subtree_control
     mkdir -p /sys/fs/cgroup/crucible_no_balance
@@ -170,44 +201,28 @@ function disable_balance_v2()
 
 function enable_balance()
 {
+    set -x
     local cpulist="$1"; shift
     local debug="$1"; shift
-
-    if [ -n "$debug" ]; then
-        echo Y > /sys/kernel/debug/sched/verbose
-    fi
-
-    cmd=$(mount | grep cgroup | awk '{ print $1 }')
-    if [[ "$cmd" =~ "cgroup2" ]]; then
+    echo Y > /sys/kernel/debug/sched/verbose
+    if [[ cgroup_v2 ]]; then
         enable_balance_v2
     else
         enable_balance_v1 $cpulist
     fi
-
-    if [ -n "$debug" ]; then
-        echo N > /sys/kernel/debug/sched/verbose
-    fi
+    echo N > /sys/kernel/debug/sched/verbose
 }
 
 function disable_balance()
 {
+    set -x
     local cpulist="$1"; shift
     local debug="$1"; shift
-
-    if [ -n "$debug" ]; then
-        echo Y > /sys/kernel/debug/sched/verbose
-    fi
-
-    cmd=$(mount | grep cgroup | awk '{ print $1 }')
-    if [[ "$cmd" =~ "cgroup2" ]]; then
+    echo Y > /sys/kernel/debug/sched/verbose
+    if [[ cgroup_v2 ]]; then
         disable_balance_v2 $cpulist
     else
         disable_balance_v1 $cpulist
     fi
-
-    if [ -n "$debug" ]; then
-        echo N > /sys/kernel/debug/sched/verbose
-    fi
+    echo N > /sys/kernel/debug/sched/verbose
 }
-
-
