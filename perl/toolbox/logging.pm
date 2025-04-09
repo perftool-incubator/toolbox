@@ -77,7 +77,7 @@ sub __log_print {
 
 sub debug_log {
     if ($toolbox::logging::debug) {
-        print "[DEBUG]" . shift;
+        log_print "[DEBUG]" . shift;
     }
 }
 

@@ -3,6 +3,8 @@
 
 package toolbox::cpu;
 
+use toolbox::logging;
+
 use Exporter qw(import);
 our @EXPORT = qw(build_cpu_topology get_cpu_topology);
 
@@ -87,15 +89,15 @@ sub build_cpu_topology {
                         }
                     }
                 } else {
-                    printf "WARNING: could not find %s\n", $file;
+                    log_print sprintf "WARNING: could not find %s\n", $file;
                 }
                 $cpu_topo[$cpu_id] = \%topo;
             } else {
-                printf "WARNING: could not find %s\n", $this_cpu_topo_path;
+                log_print sprintf "WARNING: could not find %s\n", $this_cpu_topo_path;
             }
         }
     } else {
-        printf "WARNING: could not find %s\n", $cpu_topo_path;
+        log_print sprintf "WARNING: could not find %s\n", $cpu_topo_path;
     }
     return \@cpu_topo;
 }

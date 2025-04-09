@@ -89,8 +89,8 @@ sub validate_schema {
                 debug_log(sprintf "validate_schema() going to validate schema for [%s] with [%s]\n", $filename, $schema_filename);
                 my @errors = $jv->validate($json_ref);
                 if (scalar @errors >  0) {
-                    printf "validate_schema(): validation errors for file %s with schema %s:\n", $filename, $schema_filename;
-                    print Dumper \@errors;
+                    log_print sprintf "validate_schema(): validation errors for file %s with schema %s:\n", $filename, $schema_filename;
+                    log_print Dumper \@errors;
                     return 5;
                 } else {
                     return 0;

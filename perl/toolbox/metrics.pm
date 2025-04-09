@@ -3,13 +3,14 @@
 
 package toolbox::metrics;
 
-use Exporter qw(import);
-our @EXPORT = qw(log_sample finish_samples);
-
 use strict;
 use warnings;
 use IO::File;
 use Data::Dumper;
+use toolbox::logging;
+
+use Exporter qw(import);
+our @EXPORT = qw(log_sample finish_samples);
 
 my $file_id;
 my @metric_types;
@@ -38,29 +39,29 @@ sub write_sample {
                         if (defined $value) {
                             printf { $metric_data_fh{$file_id} } "%d,%d,%d,%f\n", $idx, $begin, $end, $value;
                         } else {
-                            printf "metrics.pm::write_sample(): 'value' is not defined, filed_id = %s, idx = %d, begin = %d, end = %d\n", $file_id, $idx, $begin, $end;
-                            print "desc: " . Dumper $metric_types[$idx];
+                            log_print sprintf "metrics.pm::write_sample(): 'value' is not defined, filed_id = %s, idx = %d, begin = %d, end = %d\n", $file_id, $idx, $begin, $end;
+                            log_print "desc: " . Dumper $metric_types[$idx];
                         }
                     } else {
-                        printf "metrics.pm::write_sample(): 'end' is not defined, filed_id = %s, idx = %d, value = %f, begin = %d\n", $file_id, $idx, $value, $begin;
-                        print "desc: " . Dumper $metric_types[$idx];
+                        log_print sprintf "metrics.pm::write_sample(): 'end' is not defined, filed_id = %s, idx = %d, value = %f, begin = %d\n", $file_id, $idx, $value, $begin;
+                        log_print "desc: " . Dumper $metric_types[$idx];
                     }
                 } else {
-                    printf "metrics.pm::write_sample(): 'begin' is not defined, filed_id = %s, idx = %d, value = %f, end = %d\n", $file_id, $idx, $value, $end;
-                    print "desc: " . Dumper $metric_types[$idx];
+                    log_print sprintf "metrics.pm::write_sample(): 'begin' is not defined, filed_id = %s, idx = %d, value = %f, end = %d\n", $file_id, $idx, $value, $end;
+                    log_print "desc: " . Dumper $metric_types[$idx];
                 }
             } else {
-                printf "metrics.pm::write_sample(): 'idx' is not defined, filed_id = %s, value = %f, begin = %d, end = %d\n", $file_id, $value, $begin, $end;
-                print "desc: " . Dumper $metric_types[$idx];
+                log_print sprintf "metrics.pm::write_sample(): 'idx' is not defined, filed_id = %s, value = %f, begin = %d, end = %d\n", $file_id, $value, $begin, $end;
+                log_print "desc: " . Dumper $metric_types[$idx];
             }
         } else {
-            printf "metrics.pm::write_sample(): metric_data_fh{file_id} is not defined, idx = %d, value = %f, begin = %d, end = %d\n", $idx, $value, $begin, $end;
-            print "desc: " . Dumper $metric_types[$idx];
+            log_print sprintf "metrics.pm::write_sample(): metric_data_fh{file_id} is not defined, idx = %d, value = %f, begin = %d, end = %d\n", $idx, $value, $begin, $end;
+            log_print "desc: " . Dumper $metric_types[$idx];
             exit 1;
         }
     } else {
-        printf "metrics.pm::write_sample(): file_id is not defined, idx = %d, value = %f, begin = %d, end = %d\n", $idx, $value, $begin, $end;
-        print "desc: " . Dumper $metric_types[$idx];
+        log_print sprintf "metrics.pm::write_sample(): file_id is not defined, idx = %d, value = %f, begin = %d, end = %d\n", $idx, $value, $begin, $end;
+        log_print print "desc: " . Dumper $metric_types[$idx];
         exit 1;
     }
     if (defined $num_written_samples[$idx]) {
@@ -134,13 +135,13 @@ sub finish_samples {
             } else {
                 open( $json_fh, '>' . $file) or die("Could not open " . $file . ": $!");
             }
-            printf "writing metric_types into json for %s\n", $file_id;
+            log_print sprintf "writing metric_types into json for %s\n", $file_id;
             print $json_fh $coder->encode(\@new_metric_types);
             close($json_fh);
-            printf "closing csv file for %s\n", $file_id;
+            log_print sprintf "closing csv file for %s\n", $file_id;
             close($metric_data_fh{$file_id});
         } else {
-            printf "There are no metric_types for %s\n", $file_id;
+            log_print sprintf "There are no metric_types for %s\n", $file_id;
         }
         @stored_sample = ();;
         %metric_idx = ();
@@ -149,7 +150,7 @@ sub finish_samples {
         undef $file_id;
         return $metric_data_file_prefix;
     } else {
-        printf "file_id is not defined, so not going to finish_samples\n";
+        log_print "file_id is not defined, so not going to finish_samples\n";
     }
 }
 
@@ -207,11 +208,11 @@ sub log_sample {
             if (defined $interval[$idx]) {
                 $stored_sample[$idx]{'begin'} = $stored_sample[$idx]{'end'} - $interval[$idx];
             } else {
-                printf "ERROR: interval[%d] should have been defined, but it is not\n", $idx;
-                printf "file_id: [%s]\n", $file_id;
-                print "sample:\n" . Dumper $sample_ref;
-                print "desc:\n" . Dumper $desc_ref;
-                print "names:\n" . Dumper $names_ref;
+                log_print sprintf "ERROR: interval[%d] should have been defined, but it is not\n", $idx;
+                log_print sprintf "file_id: [%s]\n", $file_id;
+                log_print "sample:\n" . Dumper $sample_ref;
+                log_print "desc:\n" . Dumper $desc_ref;
+                log_print "names:\n" . Dumper $names_ref;
                 exit 1;
             }
         }
