@@ -15,6 +15,7 @@ BEGIN {
 }
 use lib "$ENV{'TOOLBOX_HOME'}/perl";
 use toolbox::jsonsettings;
+use toolbox::logging;
 
 my $json_settings_file = "";
 my $json_settings_query = "";
@@ -34,7 +35,7 @@ while (scalar(@ARGV) > 0) {
             $val = shift(@ARGV);
         }
     } else {
-        printf STDERR "ERROR: malformed parameter: %s\n", $param;
+        log_print_error "ERROR: malformed parameter: %s\n", $param;
         exit 1;
     }
 
@@ -46,12 +47,12 @@ while (scalar(@ARGV) > 0) {
 }
 
 if ($json_settings_file eq "") {
-    print STDERR "ERROR: you must supply a JSON settings file using --settings\n";
+    log_print_error "ERROR: you must supply a JSON settings file using --settings\n";
     exit 1;
 }
 
 if ($json_settings_query eq "") {
-    print STDERR "ERROR: you must supply a JSON settings query using --query\n";
+    log_print_error "ERROR: you must supply a JSON settings query using --query\n";
     exit 1;
 }
 
@@ -62,17 +63,17 @@ my $json_settings_value;
 ($rc, $json_settings) = load_json_settings($json_settings_file);
 
 if ($rc != 0) {
-    printf STDERR "ERROR: failed to load JSON settings from '%s'\n", $json_settings_file;
+    log_print_error "ERROR: failed to load JSON settings from '%s'\n", $json_settings_file;
     exit 1;
 }
 
 ($rc, $json_settings_value) = get_json_setting($json_settings_query, $json_settings);
 
 if ($rc != 0) {
-    printf STDERR "ERROR: JSON query '%s' failed\n", $json_settings_query;
+    log_print_error "ERROR: JSON query '%s' failed\n", $json_settings_query;
     exit 1;
 }
 
-printf "%s\n", $json_settings_value;
+log_print $json_settings_value . "\n";
 
 exit 0;
