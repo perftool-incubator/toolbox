@@ -23,6 +23,18 @@ sub log_print_error {
     __log_print(\*STDERR, $str);
 }
 
+# write the message to the specified filename and die
+sub __logged_die {
+    my ($filename, $str) = @_;
+
+    if (open(my $fh, ">", $filename)) {
+        print $fh $str;
+        close($fh);
+    }
+
+    die($str);
+}
+
 # this subroutine is meant to handle cases where prints to a file
 # handle are failing.  We believe this is because of back pressure
 # from the associated device (ie. the terminal).  Retries along with
@@ -61,15 +73,17 @@ sub __log_print {
         $attempts++;
     }
 
+    my $logged_die_filename = "/tmp/toolbox_logged_die.txt";
+
     if (! $ret) {
-        die "Failed to print '" . $str . "' to STDOUT after " . $attempts . " attempts and " . $total_open_attempts . " total open attempts!\n";
+        __logged_die($logged_die_filename, "Failed to print '" . $str . "' to STDOUT after " . $attempts . " attempts and " . $total_open_attempts . " total open attempts!\n");
     } else {
         $attempts--;
 
         if (($attempts > 1) || ($total_open_attempts > 1))  {
             $ret = print $fh "[PRINT WARNING] Previous line took " . $attempts . " attempts and " . $total_open_attempts . "  total open attempts to print after a perl print error!\n";
             if (! $ret) {
-                die "Failed to print the print warning!\n";
+                __logged_die($logged_die_filename, "Failed to print the print warning!\n");
             }
         }
     }
