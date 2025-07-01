@@ -54,13 +54,20 @@ function dump_runtime() {
     ip a
     echo
     echo "per-node-hugepages:"
-    for n in 0 1; do
-        path="/sys/devices/system/node/node$n/hugepages/hugepages-1048576kB"
-        echo $path
-        for i in `/bin/ls -1 $path`; do
-            echo $i:
-            cat $path/$i
-        done
+    for node in $(ls -1d /sys/devices/system/node/node[0-9]*); do
+        node_name=$(basename ${node})
+        echo -e "\nNUMA Node Name: ${node_name}"
+        if pushd ${node}/hugepages > /dev/null; then
+            for hugepage in $(ls -1d *); do
+                page_size=$(echo "${hugepage}" | awk -F- '{ print $2 }')
+                echo -e "\nHuge Page Size: ${page_size}\n"
+                if pushd ${hugepage} > /dev/null; then
+                    more * | tee /dev/null
+                    popd > /dev/null
+                fi
+            done
+            popd > /dev/null
+        fi
     done
 }
 
