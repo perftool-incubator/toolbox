@@ -14,13 +14,13 @@ our $debug = 0;
 sub log_print {
     my ($str) = @_;
 
-    __log_print(\*STDOUT, $str);
+    __log_print(\*STDOUT, 1, $str);
 }
 
 sub log_print_error {
     my ($str) = @_;
 
-    __log_print(\*STDERR, $str);
+    __log_print(\*STDERR, 2, $str);
 }
 
 # write the message to the specified filename and die
@@ -41,7 +41,7 @@ sub __logged_die {
 # re-opening the file handle appear to be the appropriate work around
 # at this time.
 sub __log_print {
-    my ($fh, $str) = @_;
+    my ($fh, $fdnum, $str) = @_;
 
     my $max_attempts = 6;
     my $total_open_attempts = 0;
@@ -56,7 +56,7 @@ sub __log_print {
             }
 
             my $open_attempts = 1;
-            while (!open($fh, ">&1")) {
+            while (!open($fh, ">&" . $fdnum)) {
                 $open_attempts++;
 
                 if ($open_attempts > $max_attempts) {
