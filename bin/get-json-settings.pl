@@ -35,7 +35,7 @@ while (scalar(@ARGV) > 0) {
             $val = shift(@ARGV);
         }
     } else {
-        log_print_error "ERROR: malformed parameter: %s\n", $param;
+        log_print_error sprintf "ERROR: malformed parameter: %s\n", $param;
         exit 1;
     }
 
@@ -63,14 +63,14 @@ my $json_settings_value;
 ($rc, $json_settings) = load_json_settings($json_settings_file);
 
 if ($rc != 0) {
-    log_print_error "ERROR: failed to load JSON settings from '%s'\n", $json_settings_file;
+    log_print_error sprintf "ERROR: failed to load JSON settings from '%s'\n", $json_settings_file;
     exit 1;
 }
 
 ($rc, $json_settings_value) = get_json_setting($json_settings_query, $json_settings);
 
 if ($rc != 0) {
-    log_print_error "ERROR: JSON query '%s' failed\n", $json_settings_query;
+    log_print_error sprintf "ERROR: JSON query '%s' failed\n", $json_settings_query;
     exit 1;
 }
 

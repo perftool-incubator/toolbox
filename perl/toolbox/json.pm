@@ -11,7 +11,7 @@ use IO::Uncompress::UnXz;
 use toolbox::logging;
 
 use Exporter qw(import);
-our @EXPORT = qw(put_json_file get_json_file open_write_text_file open_read_text_file validate_schema);
+our @EXPORT = qw(put_json_file get_json_file open_write_text_file open_read_text_file validate_schema dump_json);
 
 use strict;
 use warnings;
@@ -218,6 +218,13 @@ sub get_json_file {
         debug_log(sprintf "get_json_file(): something else [%s]\n", $filename);
         return ($rc, $json_ref);
     }
+}
+
+sub dump_json {
+    my $json_ref = shift;
+    my $encoder = JSON::XS->new->canonical->pretty;
+
+    return $encoder->encode($json_ref);
 }
 
 1;

@@ -11,14 +11,51 @@ use warnings;
 
 our $debug = 0;
 
+sub __debug_print_log_location {
+    my ($fh, $fdnum, $caller0_ref, $caller1_ref) = @_;
+
+    # note: caller(<int>) can break due to optimization for <int> > 1
+    # so we let the caller of this subroutine issue caller so that
+    # we don't have to issue caller(2)
+
+    my $file = $caller0_ref->[1];
+    my $line = $caller0_ref->[2];
+
+    my $routine = $caller1_ref->[3];
+    if (not defined $routine) {
+        $routine = "<unknown>";
+    } else {
+        $routine =~ s/^main:://;
+    }
+
+    my $location_data = sprintf "File: %s | Line: %s | Routine: %s", $file, $line, $routine;
+    __log_print($fh, $fdnum, sprintf "[DEBUG1] %s\n", $location_data);
+}
+
 sub log_print {
     my ($str) = @_;
+
+    if ($toolbox::logging::debug) {
+        my @caller0 = caller(0);
+        my @caller1 = caller(1);
+        __debug_print_log_location(\*STDOUT, 1, \@caller0, \@caller1);
+
+        $str = "[STDOUT] " . $str;
+    }
 
     __log_print(\*STDOUT, 1, $str);
 }
 
 sub log_print_error {
     my ($str) = @_;
+
+    if ($toolbox::logging::debug) {
+        my @caller0 = caller(0);
+        my @caller1 = caller(1);
+        __debug_print_log_location(\*STDERR, 2, \@caller0, \@caller1);
+
+        $str = "[STDERR] " . $str;
+    }
 
     __log_print(\*STDERR, 2, $str);
 }
@@ -91,7 +128,16 @@ sub __log_print {
 
 sub debug_log {
     if ($toolbox::logging::debug) {
-        log_print "[DEBUG]" . shift;
+        my $log_str = shift;
+
+        my @caller0 = caller(0);
+        my @caller1 = caller(1);
+        __debug_print_log_location(\*STDOUT, 1, \@caller0, \@caller1);
+
+        my @log_str_lines = split(/\n/, $log_str);
+        for (my $i=0; $i<scalar(@log_str_lines); $i++) {
+            __log_print(\*STDOUT, 1, sprintf "[DEBUG2] %s\n", $log_str_lines[$i]);
+        }
     }
 }
 
