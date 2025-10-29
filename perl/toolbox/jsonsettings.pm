@@ -92,8 +92,12 @@ sub get_json_setting {
 	}
     }
 
-    debug_log(sprintf "get_json_setting(): returning query_rc=%d and query_return='%s'\n", $query_rc, $query_return);
-  
+    if (defined $query_return) {
+        debug_log(sprintf "get_json_setting(): returning query_rc=%d and query_return='%s'\n", $query_rc, $query_return);
+    } else {
+        debug_log(sprintf "get_json_setting(): returning query_rc=%d and query_return=<not defined>\n", $query_rc);
+    }
+
     return ($query_rc, $query_return);
 }
 
