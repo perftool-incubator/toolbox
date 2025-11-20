@@ -5,13 +5,10 @@ on:
     types: [ closed ]
     branches: [ main ]
     paths-ignore:
-    - LICENSE
     - '**.md'
-    - '.github/rulesets/**'
-    - .github/workflows/run-crucible-tracking.yaml
-    - .github/workflows/faux-crucible-ci.yaml
-    - .github/workflows/faux-unittest.yaml
     - 'docs/**'
+    - '.github/**'
+    - '!.github/workflows/crucible-merged.yaml'
   workflow_dispatch:
 
 jobs:
