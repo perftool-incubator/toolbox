@@ -159,6 +159,18 @@ sub log_sample {
     my $desc_ref = shift;
     my $names_ref = shift;
     my $sample_ref = shift;
+
+    if (exists $ENV{'RICKSHAW_TOOL_ID'} and defined $ENV{'RICKSHAW_TOOL_ID'}) {
+        my $tool_id = $ENV{'RICKSHAW_TOOL_ID'};
+        my $prefix = $tool_id . "::";
+        if ($file_id !~ /^\Q$prefix\E/) {
+            $file_id = $prefix . $file_id;
+        }
+        if ($$desc_ref{'source'} !~ /^\Q$prefix\E/) {
+            $$desc_ref{'source'} = $prefix . $$desc_ref{'source'};
+        }
+    }
+
     $metric_data_file_prefix = "metric-data-" . $file_id;
     $metric_data_file = $metric_data_file_prefix . ".csv";
     if ($use_xz == 1) {
