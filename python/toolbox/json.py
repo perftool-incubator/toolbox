@@ -4,6 +4,8 @@ import lzma
 from jsonschema import validate
 from jsonschema import exceptions
 
+from toolbox.fileio import open_write_text_file
+
 
 def load_json_file(json_file, uselzma = False):
     """Load JSON file and return a json object/error msg tuple"""
@@ -27,6 +29,30 @@ def load_json_file(json_file, uselzma = False):
     except TypeError as err:
         err_msg = f"JSON object type error: { err }"
     return None, err_msg
+
+
+def save_json_file(filename, data, schema_file=None):
+    """Save a Python object as JSON with automatic xz compression.
+
+    Returns (actual_filename, error_msg). On success error_msg is None.
+    """
+    if schema_file is not None:
+        valid, err = validate_schema(data, schema_file)
+        if not valid:
+            return None, err
+
+    try:
+        json_text = json.dumps(data, indent=2, sort_keys=True) + "\n"
+    except (TypeError, ValueError) as err:
+        return None, f"Could not encode JSON: {err}"
+
+    try:
+        fh, actual_filename = open_write_text_file(filename)
+        fh.write(json_text)
+        fh.close()
+        return actual_filename, None
+    except OSError as err:
+        return None, f"Could not write file {filename}: {err}"
 
 def validate_schema(input_json, schema_file):
     """Validate json with schema file"""
