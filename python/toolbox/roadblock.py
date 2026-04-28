@@ -70,6 +70,7 @@ def do_roadblock(roadblock_id, label, role="follower", follower_id=None,
         msgs_log_file = os.path.join(msgs_dir, f"{label}.json")
 
     rb = RoadblockEngine(None, None)
+    rb.user_messages = None
     rb.set_uuid(uuid)
     rb.set_role(role)
     rb.set_timeout(timeout)
@@ -77,7 +78,9 @@ def do_roadblock(roadblock_id, label, role="follower", follower_id=None,
     if role == "leader":
         rb.set_leader_id(leader_id)
         if followers_file:
-            rb.set_followers_file(followers_file)
+            with open(followers_file) as f:
+                followers_list = [line.strip() for line in f if line.strip()]
+            rb.set_followers(followers_list)
     else:
         rb.set_follower_id(follower_id)
         rb.set_leader_id(leader_id)
