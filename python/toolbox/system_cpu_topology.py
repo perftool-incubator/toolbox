@@ -1,5 +1,7 @@
 import copy
 import logging
+import os
+import re
 from pathlib import Path
 
 log_format = '%(asctime)s %(levelname)s: %(message)s'
@@ -458,3 +460,84 @@ class system_cpu_topology:
                         break
 
         return(formatted_list)
+
+
+def build_cpu_topology(cpu_topo_path):
+    """Build a lightweight CPU topology dict from a sysfs cpu directory.
+
+    Matches the Perl toolbox::cpu::build_cpu_topology interface.
+    Returns a dict keyed by CPU ID with values containing
+    package_id, die_id, core_id, and thread_id.
+    """
+    cpu_topo = {}
+    if not os.path.isdir(cpu_topo_path):
+        return cpu_topo
+
+    for entry in sorted(os.listdir(cpu_topo_path)):
+        m = re.match(r'^cpu(\d+)$', entry)
+        if not m:
+            continue
+        cpu_id = int(m.group(1))
+        online_path = os.path.join(cpu_topo_path, entry, "online")
+        if os.path.exists(online_path):
+            with open(online_path) as f:
+                if f.read().strip().split('\x00')[0].strip() != "1":
+                    continue
+
+        topo_path = os.path.join(cpu_topo_path, entry, "topology")
+        if not os.path.isdir(topo_path):
+            continue
+
+        topo = {}
+        for field in ("physical_package_id", "die_id", "core_id"):
+            fpath = os.path.join(topo_path, field)
+            if os.path.exists(fpath):
+                with open(fpath) as f:
+                    val = f.read().strip().split('\x00')[0].strip()
+            else:
+                val = "0"
+            key = "package_id" if field == "physical_package_id" else field
+            topo[key] = int(val)
+
+        siblings_file = os.path.join(topo_path, "thread_siblings_list")
+        if os.path.exists(siblings_file):
+            with open(siblings_file) as f:
+                siblings_list = f.read().strip().split('\x00')[0].strip()
+            thread_id = 0
+            found = False
+            for rng in siblings_list.split(","):
+                range_m = re.match(r'(\d+)-(\d+)', rng)
+                if range_m:
+                    for i in range(int(range_m.group(1)), int(range_m.group(2)) + 1):
+                        if i == cpu_id:
+                            topo["thread_id"] = thread_id
+                            found = True
+                            break
+                        thread_id += 1
+                else:
+                    if int(rng) == cpu_id:
+                        topo["thread_id"] = thread_id
+                        found = True
+                        break
+                    thread_id += 1
+                if found:
+                    break
+
+        cpu_topo[cpu_id] = topo
+    return cpu_topo
+
+
+def get_cpu_topology(cpu_num, cpu_topo):
+    """Get (package, die, core, thread) for a CPU number.
+
+    Matches the Perl toolbox::cpu::get_cpu_topology interface.
+    """
+    if cpu_num in cpu_topo:
+        t = cpu_topo[cpu_num]
+        return (
+            t.get("package_id", 0),
+            t.get("die_id", 0),
+            t.get("core_id", 0),
+            t.get("thread_id", 0),
+        )
+    return (0, 0, cpu_num, 0)
