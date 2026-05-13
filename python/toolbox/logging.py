@@ -8,6 +8,14 @@ VERBOSE = 15
 logging.addLevelName(VERBOSE, "VERBOSE")
 
 
+def _verbose(self, message, *args, **kws):
+    if self.isEnabledFor(VERBOSE):
+        self._log(VERBOSE, message, args, **kws)
+
+
+logging.Logger.verbose = _verbose
+
+
 def setup_logging(name, level="normal"):
     """Configure logging on the root logger and return a named logger.
 
