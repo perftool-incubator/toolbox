@@ -1,4 +1,4 @@
-# perl module
+# bash library
 
 How to use this Bash library:
 
