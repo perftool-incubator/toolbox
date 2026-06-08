@@ -1,11 +1,12 @@
 # -*- mode: python; indent-tabs-mode: nil; python-indent-level: 4 -*-
 # vim: autoindent tabstop=4 shiftwidth=4 expandtab softtabstop=4 filetype=python
 
-import glob
 import json
 import lzma
 import os
-import threading
+
+
+POSTPROCESS_DIR = "postprocess"
 
 
 class CDMMetrics:
@@ -15,22 +16,8 @@ class CDMMetrics:
     processes can each have their own CDMMetrics without conflicts.
     """
 
-    _cleanup_lock = threading.Lock()
-    _cleaned_up = False
-
-    @classmethod
-    def _cleanup_stale_files(cls):
-        """Remove stale metric-data files from a previous post-processing run.
-
-        Called once per process on the first log_sample(). Thread-safe.
-        """
-        with cls._cleanup_lock:
-            if not cls._cleaned_up:
-                for f in glob.glob("metric-data-*"):
-                    os.remove(f)
-                cls._cleaned_up = True
-
-    def __init__(self):
+    def __init__(self, output_dir=POSTPROCESS_DIR):
+        self.output_dir = output_dir
         self.metric_types = []
         self.file_id = None
         self.metric_data_fh = {}
@@ -41,6 +28,7 @@ class CDMMetrics:
         self.total_logged_samples = 0
         self.total_cons_samples = 0
         self.metric_data_file_prefix = ""
+        os.makedirs(self.output_dir, exist_ok=True)
 
     def _get_metric_label(self, desc, names):
         label = desc["source"] + ":" + desc["type"] + ":"
@@ -63,10 +51,9 @@ class CDMMetrics:
             self.num_written_samples[idx] += 1
 
     def log_sample(self, file_id, desc, names, sample):
-        CDMMetrics._cleanup_stale_files()
         self.file_id = file_id
         self.metric_data_file_prefix = "metric-data-" + file_id
-        metric_data_file = self.metric_data_file_prefix + ".csv.xz"
+        metric_data_file = os.path.join(self.output_dir, self.metric_data_file_prefix + ".csv.xz")
         label = self._get_metric_label(desc, names)
 
         if label in self.metric_idx:
@@ -150,7 +137,7 @@ class CDMMetrics:
             })
 
         if new_metric_types:
-            json_file = "metric-data-" + self.file_id + ".json.xz"
+            json_file = os.path.join(self.output_dir, "metric-data-" + self.file_id + ".json.xz")
             with lzma.open(json_file, "wt") as fh:
                 json.dump(new_metric_types, fh)
 
