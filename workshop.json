@@ -7,7 +7,9 @@
     "userenvs": [
         {
             "name": "default",
-            "requirements": []
+            "requirements": [
+                "toolbox-python-deps"
+            ]
         },
         {
             "name": "crucible-controller",
