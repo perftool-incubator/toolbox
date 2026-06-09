@@ -1,7 +1,10 @@
 import copy
 import json
 import lzma
+import os
 from pathlib import Path
+
+from toolbox.cdm_metrics import POSTPROCESS_DIR
 
 global metric_types
 metric_types = []
@@ -25,6 +28,8 @@ global metric_data_file_prefix
 metric_data_file_prefix = ''
 global metric_data_file
 metric_data_file = ''
+global output_dir
+output_dir = POSTPROCESS_DIR
 
 
 def write_sample(idx: str, begin: int, end: int, value: float):
@@ -101,7 +106,8 @@ def log_sample(this_file_id: str, desc: object, names: object, sample: object):
     global file_id, total_logged_samples, total_cons_samples, stored_sample, metric_data_file_prefix
     file_id = this_file_id
     metric_data_file_prefix = "metric-data-" + file_id
-    metric_data_file = metric_data_file_prefix + ".csv.xz"
+    os.makedirs(output_dir, exist_ok=True)
+    metric_data_file = os.path.join(output_dir, metric_data_file_prefix + ".csv.xz")
     label = get_metric_label(desc, names)
     if label in metric_idx:
         # This is not the first sample for this metric_type (of this label)
@@ -203,7 +209,7 @@ def finish_samples(dont_delete=False):
                        'names': metric_types[idx]['names'] }
             new_metric_types.append(metric)
         if len(new_metric_types) > 0:
-            file = "metric-data-" + file_id + ".json.xz"
+            file = os.path.join(output_dir, "metric-data-" + file_id + ".json.xz")
             with lzma.open(file, 'wt') as json_file:
                 json.dump(new_metric_types, json_file)
             json_file.close()
