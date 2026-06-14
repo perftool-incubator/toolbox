@@ -27,7 +27,7 @@ def setup_logging(name, level="normal"):
 
     Args:
         name: logger name (typically the script name)
-        level: "normal", "verbose", "debug", or a Python logging level name
+        level: "normal", "verbose", "debug", "verbose-debug", or a Python logging level name
 
     Returns:
         configured logger instance
@@ -36,6 +36,7 @@ def setup_logging(name, level="normal"):
         "normal": logging.INFO,
         "verbose": VERBOSE,
         "debug": logging.DEBUG,
+        "verbose-debug": logging.DEBUG,
         "warning": logging.WARNING,
         "error": logging.ERROR,
     }
@@ -49,6 +50,7 @@ def setup_logging(name, level="normal"):
         "normal": "%(message)s",
         "verbose": "[%(asctime)s][%(levelname)8s] %(message)s",
         "debug": "[CODE][%(module)s %(funcName)s:%(lineno)d]\n[%(asctime)s][%(levelname) 8s][%(threadName)s] %(message)s",
+        "verbose-debug": "[CODE][%(module)s %(funcName)s:%(lineno)d]\n[%(asctime)s][%(levelname) 8s][%(threadName)s] %(message)s",
     }
     fmt = format_map.get(level, "%(message)s")
 
