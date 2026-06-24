@@ -7,7 +7,7 @@ Toolbox provides shared libraries (Bash, Python) used across the entire crucible
 | Path | Language | Key Modules |
 |------|----------|-------------|
 | `bash/library/` | Bash | `bench-base` — shared benchmark shell functions |
-| `python/toolbox/` | Python | `json.py`, `jsonsettings.py`, `metrics.py` (deprecated, use `cdm_metrics.py`), `cdm_metrics.py`, `logging.py`, `system_cpu_topology.py` |
+| `python/toolbox/` | Python | `json.py`, `jsonsettings.py`, `messages.py`, `roadblock.py`, `metrics.py` (deprecated, use `cdm_metrics.py`), `cdm_metrics.py`, `logging.py`, `system_cpu_topology.py` |
 | `bin/` | Python | CLI utilities (see below) |
 
 ## Utilities (`bin/`)
