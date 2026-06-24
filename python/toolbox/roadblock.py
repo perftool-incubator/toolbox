@@ -31,7 +31,7 @@ def do_roadblock(roadblock_id, label, role="follower", follower_id=None,
                  leader_id="controller", timeout=300, redis_server=None,
                  redis_password=None, messages=None, followers_file=None,
                  abort=False, connection_watchdog=True, log_level="normal",
-                 msgs_dir=None):
+                 msgs_dir=None, wait_for=None):
     """Run a roadblock synchronization point.
 
     Supports both leader and follower roles. Uses the roadblock module
@@ -52,6 +52,7 @@ def do_roadblock(roadblock_id, label, role="follower", follower_id=None,
         connection_watchdog: enable/disable the connection watchdog
         log_level: roadblock log level
         msgs_dir: directory for message log output
+        wait_for: optional command to run concurrently with the roadblock
 
     Returns:
         tuple of (return_code, messages_data)
@@ -95,6 +96,18 @@ def do_roadblock(roadblock_id, label, role="follower", follower_id=None,
         rb.set_message_log(msgs_log_file)
     if messages:
         rb.set_user_messages(messages)
+    if wait_for:
+        import shlex
+        if isinstance(wait_for, str):
+            wait_for_list = shlex.split(wait_for)
+        else:
+            wait_for_list = list(wait_for)
+        rb.set_wait_for_cmd(wait_for_list)
+        wait_for_log = os.path.join(
+            tempfile.mkdtemp(), "wait-for.log"
+        )
+        rb.set_wait_for_log(wait_for_log)
+        logger.info("Roadblock wait-for command: %s", wait_for_list)
 
     watchdog = "enabled" if connection_watchdog else "disabled"
     rb.set_connection_watchdog(watchdog)
@@ -105,6 +118,17 @@ def do_roadblock(roadblock_id, label, role="follower", follower_id=None,
         logger.error("Roadblock '%s' failed with rc=%d", label, rc)
     else:
         logger.info("Roadblock '%s' completed successfully", label)
+
+    if wait_for and os.path.isfile(wait_for_log):
+        with open(wait_for_log) as f:
+            log_content = f.read()
+        if log_content.strip():
+            logger.info("Wait-for log from '%s':\n%s", label, log_content.rstrip())
+        else:
+            logger.info("Wait-for log from '%s' is empty", label)
+        os.remove(wait_for_log)
+    elif wait_for:
+        logger.info("No wait-for log found for '%s'", label)
 
     messages_data = None
     if msgs_log_file and os.path.exists(msgs_log_file):
