@@ -75,7 +75,7 @@ function validate_label() {
     id=`echo $RS_CS_LABEL | awk -F- '{print $2}'`
     re='^[1-9][0-9]*$'
     if [[ ! "$id" =~ $re ]]; then
-        echo "ID must a be a positive interger, exiting"
+        echo "ID must be a positive integer, exiting"
         exit 1
     fi
 }
@@ -135,9 +135,9 @@ function cgroup2()
     cmd=$(mount | grep cgroup | awk '{ print $1 }')
     if [[ "$cmd" =~ "cgroup2" ]]; then
        echo "cgroup_v2 is present"
-       return 1
+       return 0
      fi
-    return 0
+    return 1
 }
 
 function show_balance()
@@ -145,7 +145,7 @@ function show_balance()
     set -x
     local cpulist="$1"; shift
     dmesg | grep -i sched-domain
-    if [[ cgroup_v2 ]]; then
+    if cgroup2; then
         grep . /sys/fs/cgroup/cgroup.subtree_control
     else
         for cpu in `echo ${cpulist} | sed -e 's/,/ /g'`; do
@@ -212,7 +212,7 @@ function enable_balance()
     local cpulist="$1"; shift
     local debug="$1"; shift
     echo Y > /sys/kernel/debug/sched/verbose
-    if [[ cgroup_v2 ]]; then
+    if cgroup2; then
         enable_balance_v2
     else
         enable_balance_v1 $cpulist
@@ -226,7 +226,7 @@ function disable_balance()
     local cpulist="$1"; shift
     local debug="$1"; shift
     echo Y > /sys/kernel/debug/sched/verbose
-    if [[ cgroup_v2 ]]; then
+    if cgroup2; then
         disable_balance_v2 $cpulist
     else
         disable_balance_v1 $cpulist
