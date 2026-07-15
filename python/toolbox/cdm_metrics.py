@@ -50,7 +50,44 @@ class CDMMetrics:
         else:
             self.num_written_samples[idx] += 1
 
+    def log_sample_by_idx(self, idx, value, end, begin=None):
+        """Fast path: update a known metric idx without label lookup.
+
+        Skips _get_metric_label and metric_idx lookup. The caller must have
+        obtained idx from a prior log_sample() call and must not change
+        file_id between log_sample() and calls here. begin is optional;
+        pass it only when the sample has an explicit start time.
+        Returns nothing.
+        """
+        stored = self.stored_sample[idx]
+        if idx not in self.interval and stored["end"]:
+            self.interval[idx] = end - stored["end"]
+        if "begin" not in stored:
+            if idx in self.interval:
+                stored["begin"] = stored["end"] - self.interval[idx] + 1
+            else:
+                raise RuntimeError(
+                    f"interval [{idx}] should have been defined, but it is not"
+                )
+        if stored["value"] != value:
+            self._write_sample(idx, stored["begin"], stored["end"], stored["value"])
+            self.total_cons_samples += 1
+            stored["begin"] = begin if begin is not None else stored["end"] + 1
+            stored["end"] = end
+            stored["value"] = value
+        else:
+            stored["end"] = end
+        self.total_logged_samples += 1
+
     def log_sample(self, file_id, desc, names, sample):
+        """Register or update a metric sample. Returns the metric idx.
+
+        On first call for a (desc, names) combination the metric is
+        registered. On subsequent calls the stored sample is updated.
+        Callers that call log_sample() in a tight loop with the same
+        (desc, names) can cache the returned idx and call
+        log_sample_by_idx() directly to avoid repeated label computation.
+        """
         self.file_id = file_id
         self.metric_data_file_prefix = "metric-data-" + file_id
         metric_data_file = os.path.join(self.output_dir, self.metric_data_file_prefix + ".csv.xz")
@@ -58,34 +95,8 @@ class CDMMetrics:
 
         if label in self.metric_idx:
             idx = self.metric_idx[label]
-            if idx not in self.interval and self.stored_sample[idx]["end"]:
-                self.interval[idx] = sample["end"] - self.stored_sample[idx]["end"]
-            if idx in self.stored_sample and "begin" not in self.stored_sample[idx]:
-                if idx in self.interval:
-                    self.stored_sample[idx]["begin"] = (
-                        self.stored_sample[idx]["end"] - self.interval[idx] + 1
-                    )
-                else:
-                    raise RuntimeError(
-                        f"interval [{idx}] should have been defined, but it is not"
-                    )
-            if self.stored_sample[idx]["value"] != sample["value"]:
-                self._write_sample(
-                    idx,
-                    self.stored_sample[idx]["begin"],
-                    self.stored_sample[idx]["end"],
-                    self.stored_sample[idx]["value"],
-                )
-                self.total_cons_samples += 1
-                if "begin" in sample:
-                    self.stored_sample[idx]["begin"] = sample["begin"]
-                else:
-                    self.stored_sample[idx]["begin"] = self.stored_sample[idx]["end"] + 1
-                self.stored_sample[idx]["end"] = sample["end"]
-                self.stored_sample[idx]["value"] = sample["value"]
-            else:
-                self.stored_sample[idx]["end"] = sample["end"]
-            self.total_logged_samples += 1
+            self.log_sample_by_idx(idx, sample["value"], sample["end"], sample.get("begin"))
+            return idx
         else:
             self.metric_idx[label] = len(self.metric_types)
             idx = self.metric_idx[label]
@@ -93,6 +104,7 @@ class CDMMetrics:
             if file_id not in self.metric_data_fh:
                 self.metric_data_fh[file_id] = lzma.open(metric_data_file, "wt")
             self.stored_sample[idx] = sample.copy()
+            return idx
 
     def finish_samples(self, dont_delete=False):
         if self.file_id is None:
