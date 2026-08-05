@@ -8,6 +8,32 @@ import os
 
 POSTPROCESS_DIR = "postprocess"
 
+VALID_CLASSES = {"throughput", "latency", "count", "pass/fail", "boolean", "percentage"}
+VALID_AGGREGATIONS = {"sum", "avg", "max", "min"}
+
+
+def validate_metric_desc(desc):
+    """Raise ValueError if desc has an unrecognized class or default-aggregation.
+
+    class is required; default-aggregation is optional but must be valid if present.
+    """
+    metric_id = desc.get("source", "?") + ":" + desc.get("type", "?")
+
+    metric_class = desc.get("class")
+    if metric_class not in VALID_CLASSES:
+        raise ValueError(
+            f'metric_desc for {metric_id} has invalid class "{metric_class}" '
+            f'(must be one of: {", ".join(sorted(VALID_CLASSES))})'
+        )
+
+    if "default-aggregation" in desc:
+        aggregation = desc["default-aggregation"]
+        if aggregation not in VALID_AGGREGATIONS:
+            raise ValueError(
+                f'metric_desc for {metric_id} has invalid default-aggregation "{aggregation}" '
+                f'(must be one of: {", ".join(sorted(VALID_AGGREGATIONS))})'
+            )
+
 
 class CDMMetrics:
     """Thread-safe metric tracker for CDM post-processing.
@@ -98,6 +124,7 @@ class CDMMetrics:
             self.log_sample_by_idx(idx, sample["value"], sample["end"], sample.get("begin"))
             return idx
         else:
+            validate_metric_desc(desc)
             self.metric_idx[label] = len(self.metric_types)
             idx = self.metric_idx[label]
             self.metric_types.append({"desc": desc.copy(), "names": names.copy()})
