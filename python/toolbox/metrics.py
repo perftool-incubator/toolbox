@@ -4,7 +4,7 @@ import lzma
 import os
 from pathlib import Path
 
-from toolbox.cdm_metrics import POSTPROCESS_DIR
+from toolbox.cdm_metrics import POSTPROCESS_DIR, validate_metric_desc
 
 global metric_types
 metric_types = []
@@ -149,6 +149,7 @@ def log_sample(this_file_id: str, desc: object, names: object, sample: object):
         return
     else:
         # This is the first sample for this metric type (of this label)
+        validate_metric_desc(desc)
         # This is how we track which element in the metrics array belongs to this metric type
         metric_idx[label] = len(metric_types)
         idx = metric_idx[label]
