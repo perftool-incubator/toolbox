@@ -23,6 +23,7 @@ ROADBLOCK_EXITS = {
     "input": 2,
     "timeout": 3,
     "abort": 4,
+    "heartbeat_timeout": 5,
     "abort_waiting": 6,
 }
 
@@ -54,11 +55,12 @@ def do_roadblock(roadblock_id, label, role="follower", follower_id=None,
         msgs_dir: directory for message log output
         wait_for: optional command to run concurrently with the roadblock
         dropped_followers_out: optional list; if provided, extended in place
-            with any followers detected as dropped (leader-role timeout only,
-            sourced directly from the roadblock engine's own follower tracking
-            rather than any log file). Kept out of the return tuple, rather
-            than added as a third element, so existing two-value callers are
-            unaffected by this parameter's addition.
+            with any followers detected as dropped on a leader-role timeout
+            or heartbeat timeout, sourced directly from the roadblock
+            engine's own follower tracking rather than any log file. Kept
+            out of the return tuple, rather than added as a third element,
+            so existing two-value callers are unaffected by this parameter's
+            addition.
 
     Returns:
         tuple of (return_code, messages_data)
@@ -145,7 +147,9 @@ def do_roadblock(roadblock_id, label, role="follower", follower_id=None,
         except (json.JSONDecodeError, OSError):
             logger.warning("Could not read roadblock messages from %s", msgs_log_file)
 
-    if dropped_followers_out is not None and role == "leader" and rc == ROADBLOCK_EXITS["timeout"]:
+    if dropped_followers_out is not None and role == "leader" and rc in (
+        ROADBLOCK_EXITS["timeout"], ROADBLOCK_EXITS["heartbeat_timeout"]
+    ):
         # mirrors the precedence roadblock.py's timeout_internals() uses to
         # decide which follower set is the relevant one to report
         if len(rb.followers["online"]) != 0:
