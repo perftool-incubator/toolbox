@@ -7,17 +7,10 @@ import os
 from pathlib import Path
 
 from toolbox.json import load_json_file
+from toolbox.roadblock import ROADBLOCK_EXITS
 
 
 logger = logging.getLogger(__name__)
-
-ROADBLOCK_EXITS = {
-    "success": 0,
-    "input": 2,
-    "timeout": 3,
-    "abort": 4,
-    "abort_waiting": 6,
-}
 
 
 def create_roadblock_msg(recipient_type, recipient_id, payload_type, payload):
@@ -171,7 +164,7 @@ def evaluate_roadblock_result(roadblock_rc, roadblock_name, msgs_dir,
     }
 
     if roadblock_rc != ROADBLOCK_EXITS["success"]:
-        if roadblock_rc == ROADBLOCK_EXITS["timeout"]:
+        if roadblock_rc in (ROADBLOCK_EXITS["timeout"], ROADBLOCK_EXITS["heartbeat_timeout"]):
             logger.error(
                 "Roadblock '%s' timed out, attempting to exit cleanly",
                 roadblock_name,
