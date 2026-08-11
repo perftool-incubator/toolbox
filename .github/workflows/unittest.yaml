@@ -1,0 +1,21 @@
+name: unittest
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run toolbox python unit tests
+        working-directory: python
+        env:
+          TOOLBOX_HOME: ${{ github.workspace }}
+        run: python3 -m unittest discover -s . -p "test_*.py" -v
