@@ -462,66 +462,117 @@ class system_cpu_topology:
         return(formatted_list)
 
 
-def build_cpu_topology(cpu_topo_path):
+def build_cpu_topology(cpu_topo_path, numa_map_file="cpu-numa-nodes.txt"):
     """Build a lightweight CPU topology dict from a sysfs cpu directory.
 
-    Matches the Perl toolbox::cpu::build_cpu_topology interface.
-    Returns a dict keyed by CPU ID with values containing
-    package_id, die_id, core_id, and thread_id.
+    Matches the Perl toolbox::cpu::build_cpu_topology interface for
+    package_id/die_id/core_id/thread_id. Also collects, where available,
+    node_id (NUMA node) and cache_domains (a dict of cache level ->
+    formatted CPU list sharing that cache instance, e.g. {"3": "0-15"}).
+
+    NUMA node is read from numa_map_file rather than from cpu_topo_path
+    itself: sysfs exposes a CPU's node as a nodeN symlink directly under
+    its own cpu directory, but that symlink reports a zero apparent
+    size, which breaks naive sysfs-tree copy tools (e.g. cpio's
+    readlink()) -- see sysstat-start for the collection side of this.
+    numa_map_file is a plain-text file with one "cpuN nodeM" line per
+    CPU; missing or absent lines just leave node_id unset.
     """
     cpu_topo = {}
     if not os.path.isdir(cpu_topo_path):
         return cpu_topo
+
+    numa_map = {}
+    if os.path.exists(numa_map_file):
+        with open(numa_map_file) as f:
+            for line in f:
+                m = re.match(r'^cpu(\d+)\s+node(\d+)\s*$', line.strip())
+                if m:
+                    numa_map[int(m.group(1))] = int(m.group(2))
 
     for entry in sorted(os.listdir(cpu_topo_path)):
         m = re.match(r'^cpu(\d+)$', entry)
         if not m:
             continue
         cpu_id = int(m.group(1))
-        online_path = os.path.join(cpu_topo_path, entry, "online")
+        cpu_dir = os.path.join(cpu_topo_path, entry)
+
+        online_path = os.path.join(cpu_dir, "online")
         if os.path.exists(online_path):
             with open(online_path) as f:
                 if f.read().strip().split('\x00')[0].strip() != "1":
                     continue
 
-        topo_path = os.path.join(cpu_topo_path, entry, "topology")
-        if not os.path.isdir(topo_path):
-            continue
+        # package/die/core default to the same values get_cpu_topology()
+        # would fall back to for a CPU with no topology/ data at all, so
+        # that adding this CPU to cpu_topo for its node_id/cache_domains
+        # (below) doesn't change get_cpu_topology()'s existing output for
+        # it.
+        topo = {
+            "package_id": 0,
+            "die_id": 0,
+            "core_id": cpu_id,
+            "thread_id": 0,
+        }
 
-        topo = {}
-        for field in ("physical_package_id", "die_id", "core_id"):
-            fpath = os.path.join(topo_path, field)
-            if os.path.exists(fpath):
-                with open(fpath) as f:
-                    val = f.read().strip().split('\x00')[0].strip()
-            else:
-                val = "0"
-            key = "package_id" if field == "physical_package_id" else field
-            topo[key] = int(val)
+        topo_path = os.path.join(cpu_dir, "topology")
+        if os.path.isdir(topo_path):
+            for field in ("physical_package_id", "die_id", "core_id"):
+                fpath = os.path.join(topo_path, field)
+                if os.path.exists(fpath):
+                    with open(fpath) as f:
+                        val = f.read().strip().split('\x00')[0].strip()
+                else:
+                    val = "0"
+                key = "package_id" if field == "physical_package_id" else field
+                topo[key] = int(val)
 
-        siblings_file = os.path.join(topo_path, "thread_siblings_list")
-        if os.path.exists(siblings_file):
-            with open(siblings_file) as f:
-                siblings_list = f.read().strip().split('\x00')[0].strip()
-            thread_id = 0
-            found = False
-            for rng in siblings_list.split(","):
-                range_m = re.match(r'(\d+)-(\d+)', rng)
-                if range_m:
-                    for i in range(int(range_m.group(1)), int(range_m.group(2)) + 1):
-                        if i == cpu_id:
+            siblings_file = os.path.join(topo_path, "thread_siblings_list")
+            if os.path.exists(siblings_file):
+                with open(siblings_file) as f:
+                    siblings_list = f.read().strip().split('\x00')[0].strip()
+                thread_id = 0
+                found = False
+                for rng in siblings_list.split(","):
+                    range_m = re.match(r'(\d+)-(\d+)', rng)
+                    if range_m:
+                        for i in range(int(range_m.group(1)), int(range_m.group(2)) + 1):
+                            if i == cpu_id:
+                                topo["thread_id"] = thread_id
+                                found = True
+                                break
+                            thread_id += 1
+                    else:
+                        if int(rng) == cpu_id:
                             topo["thread_id"] = thread_id
                             found = True
                             break
                         thread_id += 1
-                else:
-                    if int(rng) == cpu_id:
-                        topo["thread_id"] = thread_id
-                        found = True
+                    if found:
                         break
-                    thread_id += 1
-                if found:
-                    break
+
+        if cpu_id in numa_map:
+            topo["node_id"] = numa_map[cpu_id]
+
+        cache_path = os.path.join(cpu_dir, "cache")
+        cache_domains = {}
+        if os.path.isdir(cache_path):
+            for index_entry in sorted(os.listdir(cache_path)):
+                if not re.match(r'^index\d+$', index_entry):
+                    continue
+                index_path = os.path.join(cache_path, index_entry)
+                level_file = os.path.join(index_path, "level")
+                shared_file = os.path.join(index_path, "shared_cpu_list")
+                if not (os.path.exists(level_file) and os.path.exists(shared_file)):
+                    continue
+                with open(level_file) as f:
+                    level = f.read().strip().split('\x00')[0].strip()
+                with open(shared_file) as f:
+                    shared_list_str = f.read().strip().split('\x00')[0].strip()
+                shared_cpus = system_cpu_topology.parse_cpu_list(shared_list_str)
+                cache_domains[level] = ",".join(system_cpu_topology.formatted_cpu_list(shared_cpus))
+        if cache_domains:
+            topo["cache_domains"] = cache_domains
 
         cpu_topo[cpu_id] = topo
     return cpu_topo
@@ -541,3 +592,20 @@ def get_cpu_topology(cpu_num, cpu_topo):
             t.get("thread_id", 0),
         )
     return (0, 0, cpu_num, 0)
+
+
+def get_cpu_node(cpu_num, cpu_topo):
+    """Get the NUMA node for a CPU number, or None if unknown."""
+    if cpu_num in cpu_topo:
+        return cpu_topo[cpu_num].get("node_id")
+    return None
+
+
+def get_cpu_cache_domains(cpu_num, cpu_topo):
+    """Get a dict of cache level (str) -> formatted CPU list (str)
+    sharing that cache instance for a CPU number, e.g. {"3": "0-15"}.
+    Returns an empty dict if unknown.
+    """
+    if cpu_num in cpu_topo:
+        return cpu_topo[cpu_num].get("cache_domains", {})
+    return {}
