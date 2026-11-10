@@ -10,6 +10,7 @@ Run directly with: python3 -m unittest toolbox.test_validate_metric_desc
 
 import os
 import sys
+import lzma
 import tempfile
 import unittest
 from pathlib import Path
@@ -66,6 +67,21 @@ class TestCDMMetricsLogSample(unittest.TestCase):
             desc = {"source": "fio", "type": "iops", "class": "throughput", "default-aggregation": "sum"}
             metrics.log_sample("0", desc, {}, {"end": 1000, "value": 1})
             metrics.finish_samples()
+
+    def test_explicit_begin_gap_splits_equal_values(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            metrics = CDMMetrics(output_dir=tmpdir)
+            desc = {"source": "test", "type": "count", "class": "count"}
+            idx = metrics.log_sample(
+                "0", desc, {}, {"begin": 1000, "end": 1999, "value": 7}
+            )
+            metrics.log_sample_by_idx(idx, 7, 3999, 3000)
+            metrics.finish_samples()
+
+            with lzma.open(tmpdir + "/metric-data-0.csv.xz", "rt") as fh:
+                rows = [line.rstrip("\n") for line in fh]
+
+            self.assertEqual(rows, ["0,1000,1999,7", "0,3000,3999,7"])
 
 
 class TestLegacyMetricsLogSample(unittest.TestCase):
