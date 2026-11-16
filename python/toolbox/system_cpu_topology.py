@@ -609,3 +609,119 @@ def get_cpu_cache_domains(cpu_num, cpu_topo):
     if cpu_num in cpu_topo:
         return cpu_topo[cpu_num].get("cache_domains", {})
     return {}
+
+
+def _read_sysfs_value(path):
+    with open(path) as f:
+        return f.read().split('\x00')[0].strip()
+
+
+def _parse_sysfs_cpu_list(cpu_list, description):
+    """Validate a sysfs CPU list without changing the legacy parser."""
+    if not re.fullmatch(r'[0-9]+(?:-[0-9]+)?(?:,[0-9]+(?:-[0-9]+)?)*', cpu_list):
+        raise ValueError(f"{description} has an empty or invalid CPU list: {cpu_list!r}")
+    for part in cpu_list.split(','):
+        limits = part.split('-')
+        if len(limits) == 2 and int(limits[0]) > int(limits[1]):
+            raise ValueError(f"{description} has an invalid CPU range: {part}")
+    return set(system_cpu_topology.parse_cpu_list(cpu_list))
+
+
+def get_node_l3_domains(node, sysfs_root='/sys/devices/system'):
+    """Return (online node CPUs, L3 domains) as lists of logical CPU IDs.
+
+    Domains are distinct, normalized level-3 Unified shared_cpu_list values
+    from all cache indices, restricted to online CPUs in the requested node.
+    Lists are sorted by CPU ID; domains are ordered by their member lists
+    (lowest CPU first). CPUs without L3 data appear only in the online list.
+    sysfs_root can point to a fixture. Missing node or entirely unavailable
+    L3 data raises ValueError, rather than returning an empty selection.
+    """
+    if not isinstance(node, int) or isinstance(node, bool) or node < 0:
+        raise ValueError("NUMA node must be a non-negative integer")
+    node_file = os.path.join(sysfs_root, 'node', f'node{node}', 'cpulist')
+    try:
+        node_list = _read_sysfs_value(node_file)
+    except OSError as e:
+        raise ValueError(f"cannot read NUMA node {node} CPU list ({node_file}): {e}") from e
+    node_cpus = _parse_sysfs_cpu_list(node_list, f"NUMA node {node}")
+    cpu_root = Path(sysfs_root) / 'cpu'
+    # The global list also covers CPUs without an individual online flag.
+    # Fall back to individual flags for snapshots without the global list.
+    online_file = cpu_root / 'online'
+    has_online_list = online_file.is_file()
+    if has_online_list:
+        online_list = _read_sysfs_value(online_file)
+        online_cpus = _parse_sysfs_cpu_list(online_list, 'system online CPUs') if online_list else set()
+        node_cpus.intersection_update(online_cpus)
+    online = []
+    for cpu in sorted(node_cpus):
+        cpu_dir = cpu_root / f'cpu{cpu}'
+        if not cpu_dir.is_dir():
+            continue
+        if not has_online_list:
+            cpu_online_file = cpu_dir / 'online'
+            if cpu_online_file.is_file() and _read_sysfs_value(cpu_online_file) != '1':
+                continue
+        online.append(cpu)
+    if not online:
+        raise ValueError(f"NUMA node {node} has no online CPUs")
+    domains = {}
+    online_set = set(online)
+    for cpu in online:
+        for index in (cpu_root / f'cpu{cpu}' / 'cache').glob('index[0-9]*'):
+            if not re.fullmatch(r'index[0-9]+', index.name) or not index.is_dir():
+                continue
+            try:
+                if _read_sysfs_value(index / 'level') != '3':
+                    continue
+                if _read_sysfs_value(index / 'type') != 'Unified':
+                    continue
+                shared = _read_sysfs_value(index / 'shared_cpu_list')
+            except FileNotFoundError:
+                continue
+            if not shared:
+                continue
+            shared_cpus = _parse_sysfs_cpu_list(shared, f"CPU {cpu} L3 cache ({index})")
+            if cpu not in shared_cpus:
+                raise ValueError(f"L3 cache ({index}) shared CPU list does not include CPU {cpu}")
+            domains[tuple(sorted(shared_cpus))] = sorted(shared_cpus.intersection(online_set))
+    if not domains:
+        raise ValueError(f"NUMA node {node} has no online CPUs with L3 Unified cache data")
+    return online, sorted(domains.values())
+
+
+def select_node_l3_domain(node, domain=None, count=None, sysfs_root='/sys/devices/system', log=None):
+    """Select a zero-based node-local L3 domain and return (number, CPUs).
+
+    An omitted domain selects the largest eligible domain, breaking ties by
+    lowest CPU ID. A count, if given, must be positive and is never clamped.
+    Counts refer to logical CPUs; the lowest IDs in the domain are returned.
+    The optional log callback receives the node CPU list, full mapping, and
+    final selection. Domain numbers describe the currently online topology.
+    """
+    if domain is not None and (not isinstance(domain, int) or isinstance(domain, bool) or domain < 0):
+        raise ValueError("L3 domain number must be a non-negative integer")
+    if count is not None and (not isinstance(count, int) or isinstance(count, bool) or count < 1):
+        raise ValueError("L3 CPU count must be a positive integer")
+    online, domains = get_node_l3_domains(node, sysfs_root)
+    if log is not None:
+        log(f"NUMA node {node} online CPUs: {','.join(map(str, online))}")
+        for number, cpus in enumerate(domains):
+            log(f"L3 domain {number}: {','.join(map(str, cpus))} ({len(cpus)} CPUs)")
+    if domain is not None:
+        if domain >= len(domains):
+            raise ValueError(f"L3 domain {domain} is out of range for NUMA node {node}; valid domains are 0..{len(domains) - 1}")
+        selected = domain
+        if count is not None and count > len(domains[selected]):
+            raise ValueError(f"L3 domain {selected} has {len(domains[selected])} CPUs, fewer than requested {count}")
+    else:
+        eligible = [i for i, cpus in enumerate(domains) if count is None or len(cpus) >= count]
+        if not eligible:
+            sizes = ', '.join(f'{i}: {len(cpus)}' for i, cpus in enumerate(domains))
+            raise ValueError(f"no L3 domain has {count} CPUs; available counts by domain: {sizes}")
+        selected = min(eligible, key=lambda i: (-len(domains[i]), domains[i][0], i))
+    cpus = domains[selected] if count is None else domains[selected][:count]
+    if log is not None:
+        log(f"selected L3 domain {selected} CPUs: {','.join(map(str, cpus))}")
+    return selected, cpus
