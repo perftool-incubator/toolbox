@@ -95,7 +95,12 @@ class CDMMetrics:
                 raise RuntimeError(
                     f"interval [{idx}] should have been defined, but it is not"
                 )
-        if stored["value"] != value:
+        noncontiguous_begin = (
+            begin is not None
+            and stored["end"] is not None
+            and begin != stored["end"] + 1
+        )
+        if stored["value"] != value or noncontiguous_begin:
             self._write_sample(idx, stored["begin"], stored["end"], stored["value"])
             self.total_cons_samples += 1
             stored["begin"] = begin if begin is not None else stored["end"] + 1
